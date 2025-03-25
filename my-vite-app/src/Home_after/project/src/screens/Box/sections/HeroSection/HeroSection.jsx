@@ -1,5 +1,6 @@
 import { ChevronRightIcon } from "lucide-react";
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "../../../../components/ui/button";
 import { Card, CardContent } from "../../../../components/ui/card";
 import { Checkbox } from "../../../../components/ui/checkbox";
@@ -36,7 +37,7 @@ const stayConnectedData = [
 // Data for analytics cards
 const analyticsCardsData = [
   {
-    image: "/placeholder-image-3.png",
+    image: "/images/placeholder-image-3.png",
     title:
       "Track your waste generation patterns and enhance operational efficiency.",
     description:
@@ -44,7 +45,7 @@ const analyticsCardsData = [
     action: "Explore",
   },
   {
-    image: "/placeholder-image-4.png",
+    image: "/images/placeholder-image-4.png",
     title:
       "Gain insights with line charts and heatmaps for better decision-making.",
     description:
@@ -52,7 +53,7 @@ const analyticsCardsData = [
     action: "Analyze",
   },
   {
-    image: "/placeholder-image-5.png",
+    image: "/images/placeholder-image-5.png",
     title:
       "Predict future waste trends with our intelligent forecasting tools.",
     description:
@@ -63,14 +64,16 @@ const analyticsCardsData = [
 
 // Data for social media icons
 const socialMediaIcons = [
-  { src: "/icon---facebook.svg", alt: "Icon facebook" },
-  { src: "/icon---instagram.svg", alt: "Icon instagram" },
-  { src: "/icon---x.svg", alt: "Icon x" },
-  { src: "/icon---linkedin.svg", alt: "Icon linkedin" },
-  { src: "/icon---youtube.svg", alt: "Icon youtube" },
+  { src: "/images/icon---facebook.svg", alt: "Icon facebook" },
+  { src: "/images/icon---instagram.svg", alt: "Icon instagram" },
+  { src: "/images/icon---x.svg", alt: "Icon x" },
+  { src: "/images/icon---linkedin.svg", alt: "Icon linkedin" },
+  { src: "/images/icon---youtube.svg", alt: "Icon youtube" },
 ];
 
 export const HeroSection = () => {
+  const navigate = useNavigate();
+  
   return (
     <div className="flex flex-col w-full bg-white">
       {/* Hero Section */}
@@ -89,7 +92,10 @@ export const HeroSection = () => {
           </div>
 
           <div className="flex gap-4 items-start">
-            <Button className="px-6 py-3 bg-black border border-solid rounded-none h-auto">
+            <Button 
+              onClick={() => navigate('/dustbin')}
+              className="px-6 py-3 bg-black border border-solid rounded-none h-auto"
+            >
               <span className="font-text-regular-normal font-[number:var(--text-regular-normal-font-weight)] text-white text-[length:var(--text-regular-normal-font-size)] tracking-[var(--text-regular-normal-letter-spacing)] leading-[var(--text-regular-normal-line-height)] whitespace-nowrap [font-style:var(--text-regular-normal-font-style)]">
                 Get Started
               </span>
@@ -106,7 +112,7 @@ export const HeroSection = () => {
         <img
           className="h-[738px] w-full object-cover"
           alt="Placeholder image"
-          src="/placeholder-image.png"
+          src="/images/placeholder-image.png"
         />
       </section>
 
@@ -133,7 +139,7 @@ export const HeroSection = () => {
                     <img
                       className="w-12 h-12"
                       alt="Icon relume"
-                      src="/icon---relume.svg"
+                      src="/images/icon---relume.svg"
                     />
 
                     <h6 className="w-full font-heading-desktop-h6 font-[number:var(--heading-desktop-h6-font-weight)] text-black text-[length:var(--heading-desktop-h6-font-size)] tracking-[var(--heading-desktop-h6-letter-spacing)] leading-[var(--heading-desktop-h6-line-height)] [font-style:var(--heading-desktop-h6-font-style)]">
@@ -152,7 +158,7 @@ export const HeroSection = () => {
                     <img
                       className="w-12 h-12"
                       alt="Icon relume"
-                      src="/icon---relume.svg"
+                      src="/images/icon---relume.svg"
                     />
 
                     <h6 className="w-full font-heading-desktop-h6 font-[number:var(--heading-desktop-h6-font-weight)] text-black text-[length:var(--heading-desktop-h6-font-size)] tracking-[var(--heading-desktop-h6-letter-spacing)] leading-[var(--heading-desktop-h6-line-height)] [font-style:var(--heading-desktop-h6-font-style)]">
@@ -172,7 +178,7 @@ export const HeroSection = () => {
           <img
             className="flex-1 h-[640px] object-cover"
             alt="Placeholder image"
-            src="/placeholder-image-1.png"
+            src="/images/placeholder-image-1.png"
           />
         </div>
       </section>
@@ -196,7 +202,7 @@ export const HeroSection = () => {
           <img
             className="flex-1 h-[640px] object-cover"
             alt="Placeholder image"
-            src="/placeholder-image-2.png"
+            src="/images/placeholder-image-2.png"
           />
         </div>
       </section>
@@ -266,7 +272,10 @@ export const HeroSection = () => {
             </p>
 
             <div className="flex gap-4 items-start">
-              <Button className="px-6 py-3 bg-black border border-solid rounded-none h-auto">
+              <Button 
+                onClick={() => navigate('/dustbin')}
+                className="px-6 py-3 bg-black border border-solid rounded-none h-auto"
+              >
                 <span className="font-text-regular-normal font-[number:var(--text-regular-normal-font-weight)] text-white text-[length:var(--text-regular-normal-font-size)] tracking-[var(--text-regular-normal-letter-spacing)] leading-[var(--text-regular-normal-line-height)] whitespace-nowrap [font-style:var(--text-regular-normal-font-style)]">
                   Get Started
                 </span>

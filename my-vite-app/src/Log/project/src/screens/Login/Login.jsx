@@ -1,11 +1,17 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
-import { Button } from "../../components/ui/button";
-import { Input } from "../../components/ui/input";
-import { Separator } from "../../components/ui/separator";
+import PropTypes from 'prop-types';
 
-export const Login = () => {
+export const Login = ({ onLogin }) => {
   const navigate = useNavigate();
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    // In a real app, you would validate credentials here
+    // For now, we'll just call onLogin to simulate successful authentication
+    onLogin();
+    navigate('/dashboard');
+  };
 
   return (
     <div className="min-h-screen bg-white">
@@ -37,7 +43,7 @@ export const Login = () => {
               Access your smart waste management dashboard to monitor bin status
             </p>
             
-            <div className="space-y-4 max-w-md mx-auto">
+            <form onSubmit={handleSubmit} className="space-y-4 max-w-md mx-auto">
               <input
                 type="email"
                 placeholder="Email"
@@ -51,7 +57,7 @@ export const Login = () => {
               />
               
               <button 
-                onClick={() => navigate('/')}
+                type="submit"
                 className="w-full p-3 bg-[#61e923] text-black font-semibold rounded hover:bg-[#50d012] transition-colors"
               >
                 Log in
@@ -63,17 +69,29 @@ export const Login = () => {
                 <div className="flex-grow h-px bg-gray-300"></div>
               </div>
               
-              <button className="w-full p-3 bg-gray-500 border border-gray-600 rounded flex items-center justify-center gap-2 hover:bg-gray-600 transition-colors">
+              <button 
+                type="button"
+                className="w-full p-3 bg-gray-500 border border-gray-600 rounded flex items-center justify-center gap-2 hover:bg-gray-600 transition-colors"
+                onClick={onLogin} // Simplified for demo
+              >
                 <img src="/images/icon---google.svg" alt="Google" className="w-5 h-5" />
                 <span className="text-white">Log in with Google</span>
               </button>
               
-              <button className="w-full p-3 bg-gray-500 border border-gray-600 rounded flex items-center justify-center gap-2 hover:bg-gray-600 transition-colors">
+              <button 
+                type="button"
+                className="w-full p-3 bg-gray-500 border border-gray-600 rounded flex items-center justify-center gap-2 hover:bg-gray-600 transition-colors"
+                onClick={onLogin} // Simplified for demo
+              >
                 <img src="/images/icon---facebook.svg" alt="Facebook" className="w-5 h-5" />
                 <span className="text-white">Log in with Facebook</span>
               </button>
               
-              <button className="w-full p-3 bg-gray-500 border border-gray-600 rounded flex items-center justify-center gap-2 hover:bg-gray-600 transition-colors">
+              <button 
+                type="button"
+                className="w-full p-3 bg-gray-500 border border-gray-600 rounded flex items-center justify-center gap-2 hover:bg-gray-600 transition-colors"
+                onClick={onLogin} // Simplified for demo
+              >
                 <img src="/images/icon---apple.svg" alt="Apple" className="w-5 h-5" />
                 <span className="text-white">Log in with Apple</span>
               </button>
@@ -90,7 +108,7 @@ export const Login = () => {
                   </a>
                 </div>
               </div>
-            </div>
+            </form>
           </div>
           
           {/* Right side - Image and benefits */}
@@ -130,4 +148,8 @@ export const Login = () => {
       </div>
     </div>
   );
+};
+
+Login.propTypes = {
+  onLogin: PropTypes.func.isRequired
 };

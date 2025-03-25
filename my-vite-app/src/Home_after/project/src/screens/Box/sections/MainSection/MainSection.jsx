@@ -1,4 +1,6 @@
 import React from "react";
+import { useNavigate } from "react-router-dom";
+import PropTypes from 'prop-types';
 import { Avatar, AvatarImage } from "../../../../components/ui/avatar";
 import {
   NavigationMenu,
@@ -9,13 +11,20 @@ import {
   NavigationMenuTrigger,
 } from "../../../../components/ui/navigation-menu";
 
-export const MainSection = () => {
+export const MainSection = ({ onLogout }) => {
+  const navigate = useNavigate();
+  
   // Navigation menu items data
   const navItems = [
     { label: "Home Page", href: "#" },
     { label: "About Us", href: "#" },
     { label: "Services", href: "#" },
   ];
+
+  const handleLogout = () => {
+    onLogout();
+    navigate('/');
+  };
 
   return (
     <header className="w-full py-4 px-0">
@@ -27,7 +36,7 @@ export const MainSection = () => {
               <img
                 className="w-[41px] h-[41px] object-cover"
                 alt="Logo"
-                src="/image-5.png"
+                src="/images/image-5.png"
               />
 
               {navItems.map((item, index) => (
@@ -65,19 +74,29 @@ export const MainSection = () => {
 
         {/* Right side profile section */}
         <div className="flex items-center gap-4">
+          <button 
+            onClick={handleLogout}
+            className="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-900 transition-colors"
+          >
+            Logout
+          </button>
           <span className="font-['Roboto',Helvetica] font-normal text-black text-2xl leading-9">
             Your Profile
           </span>
           <Avatar className="w-[58px] h-12">
-            <AvatarImage src="/image-2.png" alt="Profile" />
+            <AvatarImage src="/images/image-2.png" alt="Profile" />
           </Avatar>
           <img
             className="h-[107px] w-[88px] object-cover"
             alt="Profile banner"
-            src="/image.png"
+            src="/images/image.png"
           />
         </div>
       </div>
     </header>
   );
+};
+
+MainSection.propTypes = {
+  onLogout: PropTypes.func
 };
