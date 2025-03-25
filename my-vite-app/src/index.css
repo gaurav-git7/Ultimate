@@ -1,4 +1,59 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 :root {
+  /* Font Families */
+  --heading-desktop-h1-font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  --heading-desktop-h2-font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  --text-medium-normal-font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  --text-regular-normal-font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  --text-regular-link-font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  --text-small-normal-font-family: 'Inter', system-ui, -apple-system, sans-serif;
+
+  /* Font Sizes */
+  --heading-desktop-h1-font-size: 3rem;
+  --heading-desktop-h2-font-size: 2.5rem;
+  --text-medium-normal-font-size: 1.125rem;
+  --text-regular-normal-font-size: 1rem;
+  --text-small-normal-font-size: 0.875rem;
+
+  /* Font Weights */
+  --heading-desktop-h1-font-weight: 700;
+  --heading-desktop-h2-font-weight: 700;
+  --text-medium-normal-font-weight: 500;
+  --text-regular-normal-font-weight: 400;
+  --text-regular-link-font-weight: 500;
+  --text-small-normal-font-weight: 400;
+
+  /* Line Heights */
+  --heading-desktop-h1-line-height: 1.2;
+  --heading-desktop-h2-line-height: 1.2;
+  --text-medium-normal-line-height: 1.5;
+  --text-regular-normal-line-height: 1.5;
+  --text-regular-link-line-height: 1.5;
+  --text-small-normal-line-height: 1.5;
+
+  /* Letter Spacing */
+  --heading-desktop-h1-letter-spacing: -0.02em;
+  --heading-desktop-h2-letter-spacing: -0.02em;
+  --text-medium-normal-letter-spacing: 0;
+  --text-regular-normal-letter-spacing: 0;
+  --text-regular-link-letter-spacing: 0;
+  --text-small-normal-letter-spacing: 0;
+
+  /* Brand Colors */
+  --color-primary: #61e923;
+  --color-primary-hover: #50d012;
+  --color-secondary: #000000;
+  --color-background: #ffffff;
+  --color-gray-100: #f3f4f6;
+  --color-gray-200: #e5e7eb;
+  --color-gray-300: #d1d5db;
+  --color-gray-500: #6b7280;
+  --color-gray-700: #374151;
+  --color-gray-900: #111827;
+
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
   font-weight: 400;
@@ -25,7 +80,6 @@ a:hover {
 body {
   margin: 0;
   display: flex;
-  place-items: center;
   min-width: 320px;
   min-height: 100vh;
 }
@@ -64,5 +118,33 @@ button:focus-visible {
   }
   button {
     background-color: #f9f9f9;
+  }
+}
+
+@layer base {
+  body {
+    @apply bg-white text-gray-900;
+  }
+  
+  #root {
+    @apply w-full;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-6 py-3 bg-[#61e923] text-black font-semibold rounded hover:bg-[#50d012] transition-colors;
+  }
+  
+  .btn-secondary {
+    @apply px-6 py-3 bg-black text-white border border-solid rounded hover:bg-black/90 transition-colors;
+  }
+  
+  .form-input {
+    @apply p-3 border-2 border-gray-300 focus:border-[#61e923] rounded text-black placeholder:text-gray-500 w-full transition-all;
+  }
+  
+  .card {
+    @apply bg-white p-6 shadow-lg rounded-lg border border-gray-200;
   }
 }

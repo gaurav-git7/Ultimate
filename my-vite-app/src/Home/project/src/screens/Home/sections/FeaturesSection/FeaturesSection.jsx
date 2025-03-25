@@ -1,5 +1,6 @@
 import { ChevronDownIcon } from "lucide-react";
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "../../../../components/ui/button";
 import {
   NavigationMenu,
@@ -10,6 +11,8 @@ import {
 } from "../../../../components/ui/navigation-menu";
 
 export const FeaturesSection = () => {
+  const navigate = useNavigate();
+
   // Navigation menu items data
   const navItems = [
     { label: "Home Page", hasDropdown: false },
@@ -24,7 +27,7 @@ export const FeaturesSection = () => {
         <img
           className="w-[41px] h-[41px] object-cover"
           alt="Logo"
-          src="/image-5.png"
+          src="/images/image-5.png"
         />
 
         <NavigationMenu className="max-w-none">
@@ -53,7 +56,10 @@ export const FeaturesSection = () => {
       </div>
 
       <div className="flex justify-end">
-        <Button className="bg-[#61e923] text-black border border-solid border-black rounded-none px-6 py-3 h-auto hover:bg-[#61e923] hover:text-black">
+        <Button 
+          className="bg-[#61e923] text-black border border-solid border-black rounded-none px-6 py-3 h-auto hover:bg-[#61e923] hover:text-black"
+          onClick={() => navigate('/login')}
+        >
           Login
         </Button>
       </div>

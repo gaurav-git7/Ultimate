@@ -5,7 +5,7 @@ import { Card, CardContent } from "../../../../components/ui/card";
 // Analytics feature data for mapping
 const analyticsFeatures = [
   {
-    image: "/placeholder-image-3.png",
+    image: "/images/placeholder-image-3.png",
     title:
       "Track your waste generation patterns and enhance operational efficiency.",
     description:
@@ -13,7 +13,7 @@ const analyticsFeatures = [
     action: "Explore",
   },
   {
-    image: "/placeholder-image-4.png",
+    image: "/images/placeholder-image-4.png",
     title:
       "Gain insights with line charts and heatmaps for better decision-making.",
     description:
@@ -21,7 +21,7 @@ const analyticsFeatures = [
     action: "Analyze",
   },
   {
-    image: "/placeholder-image-5.png",
+    image: "/images/placeholder-image-5.png",
     title:
       "Predict future waste trends with our intelligent forecasting tools.",
     description:

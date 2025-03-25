@@ -28,7 +28,7 @@ export const FrameScreen = (): JSX.Element => {
           </div>
           <Avatar className="w-[113px] h-[104px]">
             <AvatarImage
-              src="/image.png"
+              src="/images/image.png"
               alt="Profile"
               className="object-cover"
             />
@@ -38,9 +38,14 @@ export const FrameScreen = (): JSX.Element => {
 
         {/* Additional Image */}
         <img
-          className="absolute w-[65px] h-[53px] top-9 left-[1077px] object-cover"
-          alt="Image"
-          src="/image-3.png"
+          className="w-10 h-10 object-cover"
+          alt="User profile image"
+          src="/images/image.png"
+        />
+        <img
+          className="w-full h-full object-cover"
+          alt="Data visualization"
+          src="/images/image-3.png"
         />
       </div>
     </div>

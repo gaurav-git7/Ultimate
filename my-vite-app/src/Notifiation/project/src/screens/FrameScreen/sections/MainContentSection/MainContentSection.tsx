@@ -9,9 +9,9 @@ export const MainContentSection = (): JSX.Element => {
         {/* Left section with checkmark and first part of message */}
         <div className="relative flex-1 p-12">
           <img
-            className="w-[66px] h-[70px] object-cover"
-            alt="Checkmark"
-            src="/image-1.png"
+            className="w-8 h-8 object-cover"
+            alt="Profile"
+            src="/images/image-1.png"
           />
 
           <div className="mt-[35px]">

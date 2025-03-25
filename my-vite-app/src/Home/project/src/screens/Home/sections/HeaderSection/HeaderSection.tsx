@@ -1,7 +1,10 @@
 import React from "react";
 import { Button } from "../../../../components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 export const HeaderSection = (): JSX.Element => {
+  const navigate = useNavigate();
+
   return (
     <section className="w-full py-28 px-4 md:px-16 bg-white">
       <div className="flex flex-col items-center justify-center gap-20 max-w-7xl mx-auto">
@@ -19,9 +22,12 @@ export const HeaderSection = (): JSX.Element => {
           </div>
 
           <div className="flex gap-4 items-center">
-            <Button className="px-6 py-3 bg-black text-white border border-solid rounded-none hover:bg-black/90">
+            <Button 
+              onClick={() => navigate('/login')}
+              className="px-6 py-3 bg-black text-white border border-solid rounded-none hover:bg-black/90"
+            >
               <span className="font-text-regular-normal font-[number:var(--text-regular-normal-font-weight)] text-[length:var(--text-regular-normal-font-size)] tracking-[var(--text-regular-normal-letter-spacing)] leading-[var(--text-regular-normal-line-height)] [font-style:var(--text-regular-normal-font-style)]">
-                Get Started
+                Login
               </span>
             </Button>
 
@@ -39,7 +45,7 @@ export const HeaderSection = (): JSX.Element => {
         <img
           className="w-full max-h-[738px] object-cover"
           alt="Waste management illustration showing workers collecting trash with a garbage truck"
-          src="/placeholder-image.png"
+          src="/images/placeholder-image.png"
         />
       </div>
     </section>

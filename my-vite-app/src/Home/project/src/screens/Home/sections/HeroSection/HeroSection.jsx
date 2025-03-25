@@ -5,13 +5,13 @@ export const HeroSection = () => {
   // Data for feature cards
   const features = [
     {
-      icon: "/icon---relume.svg",
+      icon: "/images/icon---relume.svg",
       title: "Live Data",
       description:
         "Animated progress bars and interactive charts visualize your waste management in real-time.",
     },
     {
-      icon: "/icon---relume.svg",
+      icon: "/images/icon---relume.svg",
       title: "Dynamic Updates",
       description:
         "Experience seamless data refreshes that keep you informed of bin status.",
@@ -60,7 +60,7 @@ export const HeroSection = () => {
           <img
             className="h-[640px] w-full object-cover"
             alt="Placeholder image"
-            src="/placeholder-image-1.png"
+            src="/images/placeholder-image-1.png"
           />
         </div>
       </div>

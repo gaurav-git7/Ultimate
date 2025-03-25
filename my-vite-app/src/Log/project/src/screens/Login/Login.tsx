@@ -46,9 +46,9 @@ export const Login = (): JSX.Element => {
                 className="w-full flex items-center justify-center gap-3 px-6 py-3 border border-solid border-black rounded-none font-text-regular-normal"
               >
                 <img
-                  className="w-6 h-6"
-                  alt="Icon google"
-                  src="/icon---google.svg"
+                  className="w-5 h-5"
+                  alt="Google"
+                  src="/images/icon---google.svg"
                 />
                 Log in with Google
               </Button>
@@ -58,9 +58,9 @@ export const Login = (): JSX.Element => {
                 className="w-full flex items-center justify-center gap-3 px-6 py-3 border border-solid border-black rounded-none font-text-regular-normal"
               >
                 <img
-                  className="w-6 h-6"
-                  alt="Icon facebook"
-                  src="/icon---facebook.svg"
+                  className="w-5 h-5"
+                  alt="Facebook"
+                  src="/images/icon---facebook.svg"
                 />
                 Log in with Facebook
               </Button>
@@ -70,9 +70,9 @@ export const Login = (): JSX.Element => {
                 className="w-full flex items-center justify-center gap-3 px-6 py-3 border border-solid border-black rounded-none font-text-regular-normal"
               >
                 <img
-                  className="w-6 h-6"
-                  alt="Icon apple"
-                  src="/icon---apple.svg"
+                  className="w-5 h-5"
+                  alt="Apple"
+                  src="/images/icon---apple.svg"
                 />
                 Log in with Apple
               </Button>

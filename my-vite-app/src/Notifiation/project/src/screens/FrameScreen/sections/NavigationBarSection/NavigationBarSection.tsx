@@ -23,9 +23,9 @@ export const NavigationBarSection = (): JSX.Element => {
         <nav className="h-[72px] w-full flex items-center justify-around px-16 py-0">
           <div className="flex h-12 items-center gap-6 bg-[#61e923] border border-solid border-black">
             <img
-              className="w-[41px] h-[41px] object-cover"
-              alt="Image"
-              src="/image-5.png"
+              className="w-8 h-8 object-cover"
+              alt="Logo"
+              src="/images/image-5.png"
             />
 
             <NavigationMenu>

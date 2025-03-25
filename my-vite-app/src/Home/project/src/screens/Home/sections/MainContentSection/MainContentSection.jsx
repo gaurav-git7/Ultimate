@@ -20,7 +20,7 @@ export const MainContentSection = () => {
         <img
           className="flex-1 h-[640px] object-cover"
           alt="Person using waste management app on smartphone"
-          src="/placeholder-image-2.png"
+          src="/images/placeholder-image-2.png"
         />
       </div>
     </section>

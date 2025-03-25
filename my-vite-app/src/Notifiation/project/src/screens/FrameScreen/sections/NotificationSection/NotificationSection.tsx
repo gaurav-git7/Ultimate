@@ -37,9 +37,9 @@ export const NotificationSection = (): JSX.Element => {
         {/* Company Logo */}
         <div className="flex flex-col items-start flex-1">
           <img
-            className="w-[84px] h-9"
+            className="w-6 h-6"
             alt="Company logo"
-            src="/company-logo.svg"
+            src="/images/company-logo.svg"
           />
         </div>
 

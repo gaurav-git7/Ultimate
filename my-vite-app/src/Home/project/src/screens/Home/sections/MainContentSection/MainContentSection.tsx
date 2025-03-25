@@ -18,9 +18,9 @@ export const MainContentSection = (): JSX.Element => {
         </div>
 
         <img
-          className="flex-1 h-[640px] object-cover"
-          alt="Person using waste management app on smartphone"
-          src="/placeholder-image-2.png"
+          className="w-full h-full object-cover"
+          alt="Waste management illustration"
+          src="/images/placeholder-image-2.png"
         />
       </div>
     </section>

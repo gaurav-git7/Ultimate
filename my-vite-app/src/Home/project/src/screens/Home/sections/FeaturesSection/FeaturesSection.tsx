@@ -22,9 +22,9 @@ export const FeaturesSection = (): JSX.Element => {
     <header className="w-full h-[116px] flex items-center justify-between px-16">
       <div className="flex items-center gap-6 bg-[#61e923] border border-solid border-black h-[50px] px-4">
         <img
-          className="w-[41px] h-[41px] object-cover"
-          alt="Logo"
-          src="/image-5.png"
+          className="w-full h-full object-cover"
+          alt="Waste management feature illustration"
+          src="/images/image-5.png"
         />
 
         <NavigationMenu className="max-w-none">
