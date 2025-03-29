@@ -1,13 +1,32 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Home } from "./Home/project/src/screens/Home/Home";
 import { Login } from "./Log/project/src/screens/Login/Login";
+import { SignUp } from "./Log/project/src/screens/SignUp/SignUp";
 import { Box } from "./Home_after/project/src/screens/Box/Box";
-import { DustbinPage } from "./Dustbin/DustbinPage";
-import { NotificationPage } from "./Notifiation/NotificationPage";
+import { Profile } from "./Home_after/project/src/screens/Box/profile/Profile";
+import { AuthProvider, useAuth } from './firebase/AuthContext';
 
-function App() {
+// Protected route component
+const ProtectedRoute = ({ children }) => {
+  const { currentUser } = useAuth();
+  
+  if (!currentUser) {
+    // Redirect to login if not authenticated
+    return <Navigate to="/login" />;
+  }
+  
+  return children;
+};
+
+function AppContent() {
+  const { currentUser } = useAuth();
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  useEffect(() => {
+    // Update the isAuthenticated state based on Firebase auth state
+    setIsAuthenticated(!!currentUser);
+  }, [currentUser]);
 
   const handleLogin = () => {
     setIsAuthenticated(true);
@@ -31,32 +50,40 @@ function App() {
             } 
           />
           <Route 
+            path="/signup" 
+            element={
+              isAuthenticated ? 
+                <Navigate to="/dashboard" /> : 
+                <SignUp onLogin={handleLogin} />
+            } 
+          />
+          <Route 
             path="/dashboard" 
             element={
-              isAuthenticated ? 
-                <Box onLogout={handleLogout} /> : 
-                <Navigate to="/login" />
+              <ProtectedRoute>
+                <Box onLogout={handleLogout} />
+              </ProtectedRoute>
             } 
           />
           <Route 
-            path="/dustbin" 
+            path="/profile" 
             element={
-              isAuthenticated ? 
-                <DustbinPage onLogout={handleLogout} /> : 
-                <Navigate to="/login" />
-            } 
-          />
-          <Route 
-            path="/notification" 
-            element={
-              isAuthenticated ? 
-                <NotificationPage onLogout={handleLogout} /> : 
-                <Navigate to="/login" />
+              <ProtectedRoute>
+                <Profile />
+              </ProtectedRoute>
             } 
           />
         </Routes>
       </div>
     </Router>
+  );
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AppContent />
+    </AuthProvider>
   );
 }
 

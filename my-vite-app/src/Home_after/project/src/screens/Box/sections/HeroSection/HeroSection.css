@@ -1,0 +1,201 @@
+/* HeroSection.css */
+
+/* Hero section animation */
+@keyframes fadeIn {
+  from { 
+    opacity: 0; 
+    transform: translateY(20px); 
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0); 
+  }
+}
+
+.hero-animation {
+  animation: fadeIn 1s ease-out;
+}
+
+/* Stats section styling */
+.stat-value {
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: #61e923;
+  line-height: 1;
+  margin-bottom: 0.5rem;
+  transition: all 0.3s ease;
+}
+
+.stat-card:hover .stat-value {
+  transform: scale(1.05);
+}
+
+.stat-label {
+  font-size: 0.875rem;
+  color: #4b5563;
+}
+
+/* Feature cards styling */
+.feature-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 2rem;
+  transition: all 0.3s ease;
+}
+
+.feature-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+  border-color: #61e923;
+}
+
+.feature-icon {
+  width: 3rem;
+  height: 3rem;
+  background-color: #61e923;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.5rem;
+}
+
+.feature-icon svg {
+  width: 1.5rem;
+  height: 1.5rem;
+  color: white;
+}
+
+/* Testimonial cards */
+.testimonial-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  transition: all 0.3s ease;
+}
+
+.testimonial-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.testimonial-quote {
+  font-style: italic;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.testimonial-author {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.testimonial-position {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+/* CTA Section */
+.cta-section {
+  background-color: #111827;
+  color: white;
+  padding: 5rem 0;
+}
+
+.cta-title {
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+}
+
+.cta-description {
+  font-size: 1.25rem;
+  color: #d1d5db;
+  margin-bottom: 2rem;
+}
+
+.btn-primary {
+  background-color: #61e923;
+  color: #111827;
+  font-weight: 600;
+  padding: 0.75rem 2rem;
+  border-radius: 0.375rem;
+  transition: all 0.3s ease;
+}
+
+.btn-primary:hover {
+  background-color: #4eca18;
+  transform: translateY(-2px);
+}
+
+.btn-secondary {
+  background-color: transparent;
+  color: white;
+  font-weight: 600;
+  padding: 0.75rem 2rem;
+  border: 2px solid white;
+  border-radius: 0.375rem;
+  transition: all 0.3s ease;
+}
+
+.btn-secondary:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+}
+
+/* Dashboard Preview */
+.dashboard-preview {
+  transition: all 0.3s ease;
+  border: 1px solid #e5e7eb;
+}
+
+.dashboard-preview:hover {
+  box-shadow: 0 15px 30px -10px rgba(0, 0, 0, 0.1);
+}
+
+.bin-item {
+  transition: all 0.3s ease;
+}
+
+.bin-item:hover {
+  background-color: #f9fafb;
+  transform: translateX(5px);
+}
+
+/* Analytics Cards */
+.analytics-card {
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.analytics-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+.analytics-card img {
+  transition: all 0.5s ease;
+}
+
+.analytics-card:hover img {
+  transform: scale(1.05);
+}
+
+/* Footer styling */
+.footer-link {
+  transition: all 0.2s ease;
+}
+
+.footer-link:hover {
+  color: #61e923;
+  transform: translateX(3px);
+}
+
+.social-icon {
+  transition: all 0.3s ease;
+}
+
+.social-icon:hover {
+  transform: translateY(-3px);
+  background-color: #61e923;
+} 

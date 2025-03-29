@@ -1,7 +1,10 @@
 import React from "react";
 import { Button } from "../../../../components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 export const CallToActionSection = () => {
+  const navigate = useNavigate();
+
   return (
     <section className="w-full py-28 px-16 bg-white">
       <div className="flex flex-col md:flex-row gap-20">
@@ -22,6 +25,7 @@ export const CallToActionSection = () => {
             <Button
               variant="default"
               className="bg-black text-white border border-solid border-black rounded-none px-6 py-3 h-auto font-text-regular-normal text-[16px] leading-[150%] font-normal"
+              onClick={() => navigate('/login')}
             >
               Get Started
             </Button>
