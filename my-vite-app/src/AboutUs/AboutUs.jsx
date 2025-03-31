@@ -220,7 +220,7 @@ export const AboutUs = () => {
       name: "Vanshika Somnani",
       role: "Software Lead",
       bio: "Vanshika leads the software development, turning ideas into reality through robust and efficient code. She ensures that our application is scalable, secure, and high-performing.",
-      image: "/images/vanshika.jpg"
+      image: "/images/vanshika.png"
     }
   ];
 
@@ -537,7 +537,7 @@ export const AboutUs = () => {
                   <div className="absolute -top-4 -left-4 w-24 h-24 bg-[#61e923]/20 rounded-full opacity-20"></div>
                   <div className="relative z-10 overflow-hidden rounded-2xl shadow-xl transform transition-transform duration-300 hover:scale-[1.02]">
                     <img
-                      src="/images/mission-image.jpg"
+                      src="/images/smart-city.jpeg"
                       alt="Our Mission"
                       className="w-full h-auto"
                       onError={(e) => { e.target.src = 'https://placehold.co/600x400/61e923/ffffff?text=Our+Mission' }}

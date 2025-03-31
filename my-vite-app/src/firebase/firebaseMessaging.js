@@ -2,7 +2,7 @@ import { initializeApp } from "firebase/app";
 import { getMessaging, getToken, onMessage } from "firebase/messaging";
 import { getAuth } from "firebase/auth";
 
-// Firebase configuration - this should match the config in your firebase-messaging-sw.js file
+// Firebase configuration
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -13,31 +13,34 @@ const firebaseConfig = {
   measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
-// Initialize Firebase app if it hasn't been initialized yet
+// Initialize Firebase app
 let app;
 try {
   app = initializeApp(firebaseConfig);
 } catch (error) {
-  // If Firebase is already initialized, use the existing instance
   console.log("Firebase already initialized:", error);
   app = getAuth().app;
 }
 
-// Get messaging instance
+// Initialize messaging
 let messaging;
+try {
+  messaging = getMessaging(app);
+} catch (error) {
+  console.error("Error initializing Firebase messaging:", error);
+}
 
-// Function to initialize messaging (should only be called in browser environment)
+// Function to initialize messaging
 export const initializeMessaging = () => {
-  try {
-    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+  if (!messaging && typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+    try {
       messaging = getMessaging(app);
       console.log("Firebase messaging initialized");
-      return messaging;
+    } catch (error) {
+      console.error("Error initializing Firebase messaging:", error);
     }
-  } catch (error) {
-    console.error("Error initializing Firebase messaging:", error);
   }
-  return null;
+  return messaging;
 };
 
 // Request permission and get FCM token
@@ -48,31 +51,20 @@ export const requestNotificationPermission = async () => {
       if (!messaging) return null;
     }
 
-    console.log("Requesting notification permission...");
     const permission = await Notification.requestPermission();
-    
     if (permission !== "granted") {
       console.log("Notification permission denied");
       return null;
     }
-    
-    console.log("Notification permission granted");
-    
-    // Get FCM token using your VAPID key
-    const vapidKey = import.meta.env.VITE_vapidKey || "BDfWEqI_6Qk0M6YOtm86SqzuESrctZy10Ey1OAzdOfI1xlGuQhhFlj_0-tFpS1qUHJaC8vRdBrnpj2v9s1XRIUU";
-    console.log("Using VAPID key:", vapidKey);
-    
-    const token = await getToken(messaging, { 
-      vapidKey: vapidKey
-    });
+
+    const vapidKey = import.meta.env.VITE_FIREBASE_VAPID_KEY || "BDfWEqI_6Qk0M6YOtm86SqzuESrctZy10Ey1OAzdOfI1xlGuQhhFlj_0-tFpS1qUHJaC8vRdBrnpj2v9s1XRIUU";
+    const token = await getToken(messaging, { vapidKey });
     
     if (token) {
-      console.log("FCM token:", token);
+      console.log("FCM token obtained:", token);
       return token;
-    } else {
-      console.log("No registration token available");
-      return null;
     }
+    return null;
   } catch (error) {
     console.error("Error getting notification permission:", error);
     return null;
@@ -84,12 +76,11 @@ export const saveFcmToken = async (userId, token) => {
   if (!token || !userId) return false;
   
   try {
-    // Call our API endpoint to save the token
     const response = await fetch('/api/users/fcm-token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem('authToken')}` // Get token from storage
+        'Authorization': `Bearer ${localStorage.getItem('authToken')}`
       },
       body: JSON.stringify({
         fcmToken: token,
@@ -98,72 +89,60 @@ export const saveFcmToken = async (userId, token) => {
           userAgent: navigator.userAgent,
           language: navigator.language
         }
-      }),
+      })
     });
-    
-    if (response.ok) {
-      console.log("FCM token saved to user profile");
-      return true;
+
+    if (!response.ok) {
+      throw new Error('Failed to save FCM token');
     }
-    return false;
+
+    return true;
   } catch (error) {
     console.error("Error saving FCM token:", error);
     return false;
   }
 };
 
-// Listen for incoming FCM messages
+// Set up message listener
 export const setupMessageListener = (callback) => {
   if (!messaging) {
     messaging = initializeMessaging();
     if (!messaging) return;
   }
-  
+
   onMessage(messaging, (payload) => {
     console.log("Message received:", payload);
-    
-    // Create a notification if the app is in the foreground
-    if (Notification.permission === "granted") {
-      const notificationTitle = payload.notification?.title || "Smart Bin Alert";
-      const notificationOptions = {
-        body: payload.notification?.body || "You have a new notification",
-        icon: "/images/logo.png",
-        badge: "/images/logo.png",
-        data: payload.data,
-      };
-      
-      const notification = new Notification(notificationTitle, notificationOptions);
-      notification.onclick = () => {
-        window.focus();
-        notification.close();
-        
-        // Handle notification click action
-        if (callback && typeof callback === 'function') {
-          callback(payload);
-        }
-      };
-    }
+    if (callback) callback(payload);
   });
 };
 
-// For sending test notifications from the frontend (development only)
-export const sendTestNotification = async (binId, location) => {
+// Send test notification
+export const sendTestNotification = async (notification) => {
   try {
-    const response = await fetch('/api/send-test-notification', {
+    if (!messaging) {
+      messaging = initializeMessaging();
+      if (!messaging) {
+        throw new Error("Messaging not initialized");
+      }
+    }
+
+    // Send notification using Firebase Cloud Functions
+    const response = await fetch('/api/notifications/send', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${localStorage.getItem('authToken')}`
       },
-      body: JSON.stringify({
-        binId,
-        location,
-      }),
+      body: JSON.stringify(notification)
     });
-    
-    return response.ok;
+
+    if (!response.ok) {
+      throw new Error('Failed to send notification');
+    }
+
+    return true;
   } catch (error) {
-    console.error("Error sending test notification:", error);
-    return false;
+    console.error("Error sending notification:", error);
+    throw error;
   }
 }; 

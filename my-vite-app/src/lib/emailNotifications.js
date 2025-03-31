@@ -47,7 +47,7 @@ export const sendPasswordReset = async (email) => {
 };
 
 /**
- * Send a bin status email notification using Cloud Functions
+ * Send a bin status email notification using Firebase
  * @param {string} userId The user ID to send the notification to
  * @param {object} binData The bin data object
  * @returns {Promise<boolean>} Success status
@@ -58,32 +58,48 @@ export const sendBinStatusEmail = async (userId, binData) => {
       console.error("User ID and bin data are required");
       return false;
     }
-    
+
     const db = getFirestore();
-    
-    // Create a document in the 'emailNotifications' collection
-    // This will trigger a Cloud Function to send the actual email
-    await addDoc(collection(db, "emailNotifications"), {
-      userId,
-      binId: binData.binId,
-      fillPercentage: binData.fillPercentage,
-      location: binData.location || "Unknown location",
-      type: "binStatus",
-      status: binData.status,
-      timestamp: serverTimestamp(),
-      sent: false
+    const auth = getAuth();
+    const user = auth.currentUser;
+
+    if (!user || !user.email) {
+      console.error("No user email found");
+      return false;
+    }
+
+    // Add email notification to Firestore
+    await addDoc(collection(db, "mail"), {
+      to: user.email,
+      message: {
+        subject: `Bin Status Report - Bin ${binData.binId}`,
+        html: `
+          <h2>Bin Status Report</h2>
+          <p>Here's the current status of your bin:</p>
+          <ul>
+            <li><strong>Bin ID:</strong> ${binData.binId}</li>
+            <li><strong>Location:</strong> ${binData.location || "Unknown location"}</li>
+            <li><strong>Fill Level:</strong> ${binData.fillPercentage}%</li>
+            <li><strong>Status:</strong> ${binData.status}</li>
+            <li><strong>Battery Level:</strong> ${binData.batteryLevel}%</li>
+            <li><strong>Distance to Waste:</strong> ${binData.distance}cm</li>
+          </ul>
+          <p>Report generated at: ${new Date().toLocaleString()}</p>
+        `,
+      },
+      createdAt: serverTimestamp()
     });
-    
-    console.log("Email notification queued for bin status update");
+
+    console.log("Status email notification queued for", user.email);
     return true;
   } catch (error) {
-    console.error("Error queueing email notification:", error);
+    console.error("Error sending status email:", error);
     return false;
   }
 };
 
 /**
- * Send a bin overflow alert email
+ * Send a bin overflow alert email using Firebase
  * @param {string} userId The user ID to send the notification to
  * @param {object} binData The bin data object
  * @returns {Promise<boolean>} Success status
@@ -94,31 +110,47 @@ export const sendBinOverflowEmail = async (userId, binData) => {
       console.error("User ID and bin data are required");
       return false;
     }
-    
+
     const db = getFirestore();
-    
-    // Create a document in the 'emailNotifications' collection
-    await addDoc(collection(db, "emailNotifications"), {
-      userId,
-      binId: binData.binId,
-      fillPercentage: binData.fillPercentage,
-      location: binData.location || "Unknown location",
-      type: "binOverflow",
-      urgent: binData.fillPercentage >= 90, // Mark as urgent if very full
-      timestamp: serverTimestamp(),
-      sent: false
+    const auth = getAuth();
+    const user = auth.currentUser;
+
+    if (!user || !user.email) {
+      console.error("No user email found");
+      return false;
+    }
+
+    // Add email notification to Firestore
+    await addDoc(collection(db, "mail"), {
+      to: user.email,
+      message: {
+        subject: `⚠️ URGENT: Bin Overflow Alert - Bin ${binData.binId}`,
+        html: `
+          <h2 style="color: #ff0000;">⚠️ Bin Overflow Alert!</h2>
+          <p>Your bin requires immediate attention:</p>
+          <ul>
+            <li><strong>Bin ID:</strong> ${binData.binId}</li>
+            <li><strong>Location:</strong> ${binData.location || "Unknown location"}</li>
+            <li><strong>Current Fill Level:</strong> ${binData.fillPercentage}%</li>
+            <li><strong>Status:</strong> OVERFLOW ALERT</li>
+          </ul>
+          <p>Alert generated at: ${new Date().toLocaleString()}</p>
+          <p>Please take immediate action to prevent overflow issues.</p>
+        `,
+      },
+      createdAt: serverTimestamp()
     });
-    
-    console.log("Bin overflow email notification queued");
+
+    console.log("Overflow alert email queued for", user.email);
     return true;
   } catch (error) {
-    console.error("Error queueing overflow email notification:", error);
+    console.error("Error sending overflow alert email:", error);
     return false;
   }
 };
 
 /**
- * Send a collection scheduled email notification
+ * Send a collection scheduled email notification using Firebase
  * @param {string} userId The user ID to send the notification to
  * @param {string} binId The bin ID
  * @param {string} location The bin location
@@ -131,24 +163,40 @@ export const sendCollectionScheduledEmail = async (userId, binId, location, sche
       console.error("User ID and bin ID are required");
       return false;
     }
-    
+
     const db = getFirestore();
-    
-    // Create a document in the 'emailNotifications' collection
-    await addDoc(collection(db, "emailNotifications"), {
-      userId,
-      binId,
-      location: location || "Unknown location",
-      scheduledDate: scheduledDate || new Date(),
-      type: "collectionScheduled",
-      timestamp: serverTimestamp(),
-      sent: false
+    const auth = getAuth();
+    const user = auth.currentUser;
+
+    if (!user || !user.email) {
+      console.error("No user email found");
+      return false;
+    }
+
+    // Add email notification to Firestore
+    await addDoc(collection(db, "mail"), {
+      to: user.email,
+      message: {
+        subject: `Collection Scheduled - Bin ${binId}`,
+        html: `
+          <h2>Bin Collection Scheduled</h2>
+          <p>A collection has been scheduled for your bin:</p>
+          <ul>
+            <li><strong>Bin ID:</strong> ${binId}</li>
+            <li><strong>Location:</strong> ${location || "Unknown location"}</li>
+            <li><strong>Scheduled Date:</strong> ${scheduledDate.toLocaleString()}</li>
+          </ul>
+          <p>Notification sent at: ${new Date().toLocaleString()}</p>
+          <p>The collection team will arrive at the scheduled time.</p>
+        `,
+      },
+      createdAt: serverTimestamp()
     });
-    
-    console.log("Collection scheduled email notification queued");
+
+    console.log("Collection scheduled email queued for", user.email);
     return true;
   } catch (error) {
-    console.error("Error queueing collection email notification:", error);
+    console.error("Error sending collection scheduled email:", error);
     return false;
   }
 }; 

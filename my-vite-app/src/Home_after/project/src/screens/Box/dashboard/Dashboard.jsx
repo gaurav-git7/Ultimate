@@ -150,9 +150,51 @@ const saveNotificationSettings = (settings) => {
   console.log("Saving notification settings:", settings);
 };
 
-const sendBinOverflowNotification = (binId, binLocationText) => {
-  console.log(`Bin ${binId} at ${binLocationText || 'unknown location'} is overflowing!`);
-  alert(`Bin ${binId} at ${binLocationText || 'unknown location'} is overflowing!`);
+const sendBinOverflowNotification = async (binId, binLocationText) => {
+  try {
+    if (!notificationsEnabled) {
+      console.log("Notifications are disabled");
+      return;
+    }
+
+    // Request permission first
+    const permission = await Notification.requestPermission();
+    
+    if (permission === "granted") {
+      // Create and show notification
+      const notification = new Notification("Bin Overflow Alert!", {
+        body: `Bin ${binId} at ${binLocationText || 'unknown location'} is overflowing!`,
+        icon: "/images/image-5.png",
+        badge: "/images/image-5.png",
+        data: {
+          binId: binId,
+          location: binLocationText || 'unknown location',
+          type: 'overflow',
+          timestamp: new Date().toISOString()
+        },
+        requireInteraction: true // Notification won't auto-dismiss
+      });
+
+      // Handle notification click
+      notification.onclick = () => {
+        window.focus();
+        notification.close();
+        navigate('/dashboard');
+      };
+
+      // Also send email notification if user is logged in
+      if (currentUser?.uid) {
+        await sendBinOverflowEmail(currentUser.uid, {
+          binId,
+          location: binLocationText || 'unknown location',
+          fillPercentage: binData?.fillPercentage || 100,
+          status: 'critical'
+        });
+      }
+    }
+  } catch (error) {
+    console.error("Error sending overflow notification:", error);
+  }
 };
 
 // Mock Tabs components until we create the proper components
@@ -218,16 +260,53 @@ export const Dashboard = () => {
   // Request notification permissions when component mounts
   useEffect(() => {
     const requestPermissions = async () => {
-      const settings = getNotificationSettings();
-      
-      if (settings.enabled) {
-        const permissionGranted = await requestNotificationPermission();
-        setNotificationsEnabled(permissionGranted);
+      try {
+        // Initialize Firebase messaging
+        const messaging = await initializeMessaging();
+        
+        if (messaging) {
+          // Request permission
+          const permission = await Notification.requestPermission();
+          
+          if (permission === "granted") {
+            // Get FCM token
+            const token = await messaging.getToken();
+            
+            if (token) {
+              // Save token to backend
+              await saveFcmToken(userId, token);
+              setNotificationsEnabled(true);
+              
+              // Set up message listener
+              setupMessageListener((payload) => {
+                console.log("Received notification:", payload);
+                // Show notification
+                if (Notification.permission === "granted") {
+                  new Notification(payload.notification.title, {
+                    body: payload.notification.body,
+                    icon: "/images/image-5.png",
+                    badge: "/images/image-5.png",
+                    data: payload.data,
+                    tag: payload.data?.type || 'default',
+                    requireInteraction: true
+                  });
+                }
+              });
+            }
+          } else {
+            setNotificationsEnabled(false);
+          }
+        }
+      } catch (error) {
+        console.error("Error setting up notifications:", error);
+        setNotificationsEnabled(false);
       }
     };
     
+    if (currentUser) {
     requestPermissions();
-  }, []);
+    }
+  }, [currentUser, userId]);
 
   // Load the saved bin ID from local storage when component mounts
   useEffect(() => {
@@ -249,19 +328,34 @@ export const Dashboard = () => {
 
   // Monitor bin fill level for overflow notifications
   useEffect(() => {
-    if (binData && notificationsEnabled) {
-      const settings = getNotificationSettings();
-      const threshold = settings.threshold || 80;
+    if (binData) {
+      const threshold = 80; // Fixed threshold at 80%
       
       // Check if bin is full and hasn't been notified yet
       if (binData.fillPercentage >= threshold && previousFillLevel < threshold) {
-        sendBinOverflowNotification(binData.binId, binData.location);
+        // Request permission and show notification
+        Notification.requestPermission().then(permission => {
+          if (permission === "granted") {
+            const notification = new Notification("Bin Overflow Alert!", {
+              body: `Bin ${binData.binId} at ${binData.location || 'unknown location'} is at ${binData.fillPercentage}% capacity!`,
+              icon: "/images/image-5.png",
+              badge: "/images/image-5.png",
+              requireInteraction: true
+            });
+
+            notification.onclick = () => {
+              window.focus();
+              notification.close();
+              navigate('/dashboard');
+            };
+          }
+        });
       }
       
       // Update previous fill level
       setPreviousFillLevel(binData.fillPercentage);
     }
-  }, [binData, notificationsEnabled, previousFillLevel]);
+  }, [binData, previousFillLevel, navigate]);
 
   // Use our API service to fetch real bin data
   const fetchBinData = async (id) => {
@@ -269,29 +363,9 @@ export const Dashboard = () => {
     setError(null);
     
     try {
-      // Use our real API service
-      const data = await api.binData.getBinData(id);
-      
-      // Update state with real data
-      setBinData(data);
-      
-      // Get history data as well
-      try {
-        const history = await api.binData.getBinHistory(id, 10);
-        console.log("Fetched history data:", history); // Debugging line
-        setBinHistory(history || []);
-      } catch (historyErr) {
-        console.error("Error fetching bin history:", historyErr);
-      }
-      
-      return data;
-    } catch (err) {
-      console.error("Error fetching bin data:", err);
-      setError("Failed to fetch bin data. Please try again.");
-      
-      // Fallback to mock data for development/testing
+      // Use mock data in development mode
       if (import.meta.env.DEV) {
-        console.log("Using fallback mock data for development");
+        console.log("Using mock data for development");
         const mockData = generateMockData(id);
         setBinData(mockData);
         setBinHistory(prev => {
@@ -300,8 +374,37 @@ export const Dashboard = () => {
         });
         return mockData;
       }
+
+      // Try to fetch real data
+      const data = await api.binData.getBinData(id);
+      setBinData(data);
       
-      return null;
+      // Get history data as well
+      try {
+        const history = await api.binData.getBinHistory(id, 10);
+        console.log("Fetched history data:", history);
+        setBinHistory(history || []);
+      } catch (historyErr) {
+        console.error("Error fetching bin history:", historyErr);
+        // Use mock history data in case of error
+        const mockHistory = Array(10).fill(null).map(() => generateMockData(id));
+        setBinHistory(mockHistory);
+      }
+      
+      return data;
+    } catch (err) {
+      console.error("Error fetching bin data:", err);
+      
+      // Use mock data as fallback
+      console.log("Using fallback mock data");
+        const mockData = generateMockData(id);
+        setBinData(mockData);
+        setBinHistory(prev => {
+          const newHistory = [mockData, ...prev];
+          return newHistory.slice(0, 10);
+        });
+      
+      return mockData;
     } finally {
       setLoading(false);
     }
@@ -324,23 +427,51 @@ export const Dashboard = () => {
     };
   };
 
-  // Handle toggling notifications
+  // Function to handle notification toggle
   const handleToggleNotifications = async () => {
+    try {
     if (notificationsEnabled) {
       // Disable notifications
-      const settings = getNotificationSettings();
-      settings.enabled = false;
-      saveNotificationSettings(settings);
       setNotificationsEnabled(false);
     } else {
-      // Enable notifications
-      const permissionGranted = await requestNotificationPermission();
-      if (permissionGranted) {
-        const settings = getNotificationSettings();
-        settings.enabled = true;
-        saveNotificationSettings(settings);
+        // Request permission
+        const permission = await Notification.requestPermission();
+        
+        if (permission === "granted") {
+          // Initialize Firebase messaging
+          const messaging = await initializeMessaging();
+          
+          if (messaging) {
+            // Get FCM token
+            const token = await messaging.getToken();
+            
+            if (token) {
+              // Save token to backend
+              await saveFcmToken(userId, token);
         setNotificationsEnabled(true);
+              
+              // Set up message listener
+              setupMessageListener((payload) => {
+                console.log("Received notification:", payload);
+                // Show notification
+                if (Notification.permission === "granted") {
+                  new Notification(payload.notification.title, {
+                    body: payload.notification.body,
+                    icon: "/images/image-5.png",
+                    badge: "/images/image-5.png",
+                    data: payload.data,
+                    tag: payload.data?.type || 'default',
+                    requireInteraction: true
+                  });
+                }
+              });
+            }
+          }
+        }
       }
+    } catch (error) {
+      console.error("Error toggling notifications:", error);
+      setNotificationsEnabled(false);
     }
   };
 
@@ -656,106 +787,48 @@ export const Dashboard = () => {
 
   // Function to test notifications
   const handleTestNotification = async () => {
-    if (connected && binId) {
-      // Test push notification if enabled
-      if (notificationsEnabled) {
-        sendBinOverflowNotification(binId, binLocation);
-      }
+    try {
+      // Request permission first
+      const permission = await Notification.requestPermission();
       
-      // Always test email notification
-      if (userId) {
-        try {
-          await sendBinOverflowEmail(userId, {
-            binId,
-            location: binLocation || "Test Location",
-            fillPercentage: 85,
-            status: "critical"
-          });
-        } catch (error) {
-          console.error("Error sending test email:", error);
-        }
-      }
-      
-      setActionSuccess("Test notifications sent!");
-      
-      // Hide success message after a delay
+      if (permission === "granted") {
+        // Create and show notification
+        const notification = new Notification("Test Notification", {
+          body: "This is a test notification from SmartWaste",
+          icon: "/images/image-5.png",
+          badge: "/images/image-5.png",
+          data: {
+            type: 'test',
+            timestamp: new Date().toISOString()
+          },
+          requireInteraction: true // Notification won't auto-dismiss
+        });
+
+        // Handle notification click
+        notification.onclick = () => {
+          window.focus();
+          notification.close();
+          navigate('/dashboard');
+        };
+
+        setActionSuccess("Test notification sent! Check your system notifications.");
       setTimeout(() => {
         setActionSuccess(null);
       }, 5000);
-    } else if (!notificationsEnabled) {
-      setActionError("Notifications are disabled. Enable them from the dashboard header.");
-      
-      // Hide error message after a delay
+      } else {
+        setActionError("Please allow notifications to receive alerts.");
+        setTimeout(() => {
+          setActionError(null);
+        }, 5000);
+      }
+    } catch (error) {
+      console.error("Error sending test notification:", error);
+      setActionError("Failed to send test notification. Please check your notification settings.");
       setTimeout(() => {
         setActionError(null);
       }, 5000);
     }
   };
-
-  // Existing bin data for testing
-  useEffect(() => {
-    if (userId) {
-      // Initialize Firebase messaging and request permission
-    const initNotifications = async () => {
-      try {
-          // Initialize Firebase messaging
-          const messaging = await initializeMessaging();
-        if (messaging) {
-            // Set up message listener
-            setupMessageListener((payload) => {
-              console.log("Received message:", payload);
-              // Refresh data when a notification is received
-              fetchBinData(binId);
-            });
-            
-            // Request permission
-            const permissionGranted = await requestNotificationPermission();
-            setNotificationsEnabled(permissionGranted);
-            
-            if (permissionGranted) {
-              // Get FCM token and save it
-              const fcmToken = await messaging.getToken();
-          if (fcmToken) {
-                // Save to our backend
-                const tokenSaved = await saveFcmToken(userId, fcmToken);
-                console.log("FCM token saved:", tokenSaved);
-                
-                // Test push notification if enabled
-                if (notificationsEnabled) {
-                  sendBinOverflowNotification(binId, binLocation);
-                }
-                
-                // Also test email notification for development
-                if (import.meta.env.DEV && notificationsEnabled) {
-                  try {
-                    await sendBinOverflowEmail(userId, {
-                      binId,
-                      location: binLocation || "Test Location",
-                      fillPercentage: 85,
-                      status: "critical"
-                    });
-                    console.log("Test email notification sent successfully");
-                  } catch (emailErr) {
-                    console.error("Error sending test email notification:", emailErr);
-                  }
-                }
-              }
-          }
-        }
-      } catch (error) {
-        console.error("Error setting up notifications:", error);
-      }
-    };
-    
-    // Initialize notifications after auth
-    if (currentUser) {
-      initNotifications();
-    }
-    
-    // Existing code for fetching data
-    fetchBinData();
-    }
-  }, [currentUser]);
 
   // Navigation menu items data with icons for better visual cues
   const navItems = [
@@ -795,9 +868,16 @@ export const Dashboard = () => {
     e.preventDefault();
     
     if (item.isScroll) {
-      // For scroll items
-      scrollToSection(item.sectionId);
-      setActiveLink(item.href);
+      // For scroll items, navigate to home page first if not already there
+      if (location.pathname !== '/') {
+        navigate('/', { 
+          state: { scrollTo: item.sectionId },
+          replace: true 
+        });
+      } else {
+        // Already on home page, just scroll
+        scrollToSection(item.sectionId);
+      }
     } else {
       // For page navigation
       setActiveLink(item.href);
@@ -811,20 +891,22 @@ export const Dashboard = () => {
   const scrollToSection = (sectionId) => {
     const element = document.getElementById(sectionId);
     if (element) {
-      // If not on homepage, navigate there first, then scroll
-      const currentPathname = location.pathname;
-      if (currentPathname !== '/') {
-        navigate('/');
-        // Need to wait for navigation to complete before scrolling
-        setTimeout(() => {
-          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }, 100);
-      } else {
-        // Already on homepage, just scroll
-        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
   };
+
+  // Check for scroll state when component mounts
+  useEffect(() => {
+    const state = location.state;
+    if (state?.scrollTo) {
+      // Wait for navigation to complete before scrolling
+      setTimeout(() => {
+        scrollToSection(state.scrollTo);
+      }, 100);
+      // Clear the state
+      navigate(location.pathname, { state: {}, replace: true });
+    }
+  }, [location.state, navigate]);
 
   // Classes for the navbar based on scroll position
   const navbarClasses = `fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
@@ -865,7 +947,7 @@ export const Dashboard = () => {
               <div className="hidden md:block">
                 <h1 className="font-bold text-xl text-gray-900 group-hover:text-[#4db31e] transition-colors duration-300">
                   SmartWaste
-                </h1>
+        </h1>
                 <p className="text-xs text-gray-500 transform group-hover:translate-x-1 transition-transform duration-300">
                   Intelligent Management
                 </p>
@@ -920,7 +1002,7 @@ export const Dashboard = () => {
               <div className="hidden sm:flex items-center gap-3">
                 {!currentUser ? (
                   <>
-                    <Button 
+          <Button 
                       className="relative overflow-hidden text-[#4db31e] hover:text-white bg-white hover:bg-[#61e923] border border-[#61e923]/40 hover:border-transparent rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 active:translate-y-0 px-4 py-1.5 group"
                       onClick={() => navigate('/login')}
                     >
@@ -929,7 +1011,7 @@ export const Dashboard = () => {
                         <LogIn size={16} className="group-hover:rotate-12 transition-transform duration-300" />
                         <span>Sign In</span>
                       </span>
-                    </Button>
+          </Button>
                     <Button 
                       className="relative overflow-hidden bg-[#61e923] hover:bg-[#4db31e] text-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 border-none transform hover:-translate-y-1 active:translate-y-0 px-5 py-2 group"
                       onClick={() => navigate('/signup')}
@@ -1117,29 +1199,26 @@ export const Dashboard = () => {
         </h1>
           <div className="flex items-center gap-2 flex-wrap justify-end">
           <Button 
-            onClick={handleToggleNotifications}
-            className={`flex items-center gap-2 ${notificationsEnabled ? 'bg-green-50 hover:bg-green-100 text-green-700' : 'bg-gray-50 hover:bg-gray-100 text-gray-700'}`}
-            title={notificationsEnabled ? "Notifications enabled" : "Notifications disabled"}
-          >
-            <BellIcon size={16} />
-            <span className="hidden sm:inline">{notificationsEnabled ? "Notifications On" : "Notifications Off"}</span>
-          </Button>
-          
-          <Button 
             onClick={handleRefresh} 
             disabled={loading || !connected}
-            className="flex items-center gap-2 bg-blue-50 hover:bg-blue-100 text-blue-700"
+              className="relative overflow-hidden text-blue-600 hover:text-white bg-white hover:bg-blue-600 border border-blue-200 hover:border-transparent rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 active:translate-y-0 px-4 py-1.5 group"
           >
-            <RefreshCcwIcon size={16} />
+              <span className="absolute inset-0 bg-gradient-to-r from-blue-400/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl"></span>
+              <span className="relative z-10 flex items-center gap-2">
+                <RefreshCcwIcon size={16} className="group-hover:rotate-12 transition-transform duration-300" />
             <span>Refresh</span>
+              </span>
           </Button>
           {connected && (
             <Button 
               onClick={handleDisconnect}
-              className="flex items-center gap-2 bg-red-50 hover:bg-red-100 text-red-700"
+                className="relative overflow-hidden text-red-600 hover:text-white bg-white hover:bg-red-600 border border-red-200 hover:border-transparent rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 active:translate-y-0 px-4 py-1.5 group"
             >
-              <Trash2Icon size={16} />
+                <span className="absolute inset-0 bg-gradient-to-r from-red-400/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl"></span>
+                <span className="relative z-10 flex items-center gap-2">
+                  <Trash2Icon size={16} className="group-hover:rotate-12 transition-transform duration-300" />
               <span>Disconnect</span>
+                </span>
             </Button>
           )}
         </div>
@@ -1182,12 +1261,15 @@ export const Dashboard = () => {
         <div className="mt-4 flex justify-center">
           {!connected ? (
             <Button
-                onClick={() => handleConnect(binId, binLocation)}
+              onClick={() => handleConnect(binId, binLocation)}
               disabled={isConnecting || !binId}
-              className="px-6 py-2 bg-primary text-white font-medium flex items-center gap-2"
+              className="relative overflow-hidden text-white bg-[#61e923] hover:bg-[#4db31e] rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 active:translate-y-0 px-6 py-2 group"
             >
+              <span className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl"></span>
+              <span className="relative z-10 flex items-center gap-2">
               {isConnecting ? "Connecting..." : "Connect to Bin"}
-              {!isConnecting && <MapPinIcon size={18} />}
+                {!isConnecting && <MapPinIcon size={18} className="group-hover:rotate-12 transition-transform duration-300" />}
+              </span>
             </Button>
           ) : (
             <p className="text-green-600 font-medium flex items-center gap-2">
@@ -1400,54 +1482,33 @@ export const Dashboard = () => {
             
             <div className="flex flex-wrap gap-4">
               <Button 
-                className="bg-green-600 hover:bg-green-700 flex items-center gap-2"
-                onClick={handleScheduleCollection}
-                disabled={schedulingCollection}
-              >
-                {schedulingCollection ? (
-                  <>Scheduling...</>
-                ) : (
-                  <>
-                    <CalendarIcon size={16} />
-                    Schedule Collection
-                  </>
-                )}
-              </Button>
-              
-              <Button 
-                className="bg-blue-600 hover:bg-blue-700 flex items-center gap-2"
+                className="relative overflow-hidden text-white bg-blue-600 hover:bg-blue-700 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 active:translate-y-0 px-6 py-2 group"
                 onClick={handleEmptyBin}
                 disabled={emptyingBin}
               >
+                <span className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl"></span>
+                <span className="relative z-10 flex items-center gap-2">
                 {emptyingBin ? (
                   <>Marking as Empty...</>
                 ) : (
                   <>
-                    <TrashIcon size={16} />
+                      <TrashIcon size={16} className="group-hover:rotate-12 transition-transform duration-300" />
                     Empty Bin
                   </>
                 )}
+                </span>
               </Button>
               
-              <Button className="bg-purple-600 hover:bg-purple-700">Maintenance Request</Button>
-              <Button className="bg-amber-600 hover:bg-amber-700">Bin Settings</Button>
-              
-              {/* Test notification button */}
               <Button 
-                className="bg-slate-600 hover:bg-slate-700 flex items-center gap-2"
+                className="relative overflow-hidden text-white bg-slate-600 hover:bg-slate-700 rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 active:translate-y-0 px-6 py-2 group"
                 onClick={handleTestNotification}
                 title="Send a test notification"
               >
-                <BellIcon size={16} />
+                <span className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl"></span>
+                <span className="relative z-10 flex items-center gap-2">
+                  <BellIcon size={16} className="group-hover:rotate-12 transition-transform duration-300" />
                 Test Notification
-              </Button>
-
-              <Button 
-                className="bg-indigo-600 hover:bg-indigo-700 flex items-center gap-2"
-                onClick={handleSendStatusEmail}
-              >
-                <MailIcon size={16} />
-                Email Status Report
+                </span>
               </Button>
             </div>
           </div>
