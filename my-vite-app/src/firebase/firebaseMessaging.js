@@ -59,8 +59,11 @@ export const requestNotificationPermission = async () => {
     console.log("Notification permission granted");
     
     // Get FCM token using your VAPID key
+    const vapidKey = import.meta.env.VITE_vapidKey || "BDfWEqI_6Qk0M6YOtm86SqzuESrctZy10Ey1OAzdOfI1xlGuQhhFlj_0-tFpS1qUHJaC8vRdBrnpj2v9s1XRIUU";
+    console.log("Using VAPID key:", vapidKey);
+    
     const token = await getToken(messaging, { 
-      vapidKey: import.meta.env.VITE_vapidKey 
+      vapidKey: vapidKey
     });
     
     if (token) {

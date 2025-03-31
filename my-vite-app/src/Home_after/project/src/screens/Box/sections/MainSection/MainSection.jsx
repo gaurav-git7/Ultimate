@@ -18,6 +18,8 @@ export const MainSection = ({ onLogout }) => {
   
   // Navigation menu items data
   const navItems = [
+    { label: "Home Page", href: "/" },
+    { label: "About Us", href: "/about" },
     { label: "Dashboard", href: "/dashboard" }
   ];
 

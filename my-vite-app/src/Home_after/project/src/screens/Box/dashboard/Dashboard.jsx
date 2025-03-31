@@ -14,7 +14,15 @@ import {
   CalendarIcon,
   BellIcon,
   RefreshCw,
-  MailIcon
+  MailIcon,
+  LogIn, 
+  Home as HomeIcon, 
+  Info, 
+  BarChart3, 
+  Mail, 
+  Bell,
+  Menu,
+  X
 } from "lucide-react";
 import { Button } from "../../../../../../components/ui/button.jsx";
 import { Input } from "../../../../../../components/ui/input.jsx";
@@ -28,6 +36,13 @@ import {
   CardTitle,
 } from "../../../../../../components/ui/card.jsx";
 import { Label } from "../../../../../../components/ui/label";
+import {
+  NavigationMenu,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+} from "../../../../../../components/ui/navigation-menu.jsx";
+import { useNavigate, useLocation } from "react-router-dom";
 import { 
   initializeMessaging, 
   requestNotificationPermission, 
@@ -40,6 +55,70 @@ import {
   sendBinStatusEmail,
   sendCollectionScheduledEmail
 } from "../../../../../../lib/emailNotifications";
+
+// Add CSS animations for the leaf elements
+const leafAnimationStyles = `
+  @keyframes float {
+    0% { transform: translate(0, 0) rotate(0deg); }
+    25% { transform: translate(10px, 15px) rotate(5deg); }
+    50% { transform: translate(20px, 0) rotate(10deg); }
+    75% { transform: translate(10px, -15px) rotate(5deg); }
+    100% { transform: translate(0, 0) rotate(0deg); }
+  }
+
+  @keyframes floatReverse {
+    0% { transform: translate(0, 0) rotate(0deg); }
+    25% { transform: translate(-10px, -15px) rotate(-5deg); }
+    50% { transform: translate(-20px, 0) rotate(-10deg); }
+    75% { transform: translate(-10px, 15px) rotate(-5deg); }
+    100% { transform: translate(0, 0) rotate(0deg); }
+  }
+
+  .leaf {
+    position: absolute;
+    width: 40px;
+    height: 40px;
+    background-color: rgba(97, 233, 35, 0.1);
+    border-radius: 30% 70% 70% 30% / 30% 30% 70% 70%;
+    will-change: transform;
+  }
+
+  .leaf-1 {
+    top: 10%;
+    left: 10%;
+    animation: float 15s ease-in-out infinite;
+  }
+
+  .leaf-2 {
+    top: 20%;
+    right: 10%;
+    width: 60px;
+    height: 60px;
+    background-color: rgba(77, 179, 30, 0.1);
+    animation: floatReverse 18s ease-in-out infinite;
+    animation-delay: 1s;
+  }
+
+  .leaf-3 {
+    bottom: 15%;
+    left: 20%;
+    width: 30px;
+    height: 30px;
+    background-color: rgba(97, 233, 35, 0.15);
+    animation: float 12s ease-in-out infinite;
+    animation-delay: 2s;
+  }
+
+  .leaf-4 {
+    bottom: 25%;
+    right: 20%;
+    width: 50px;
+    height: 50px;
+    background-color: rgba(77, 179, 30, 0.15);
+    animation: floatReverse 14s ease-in-out infinite;
+    animation-delay: 3s;
+  }
+`;
 
 // Mock Toast implementation until we create the proper component
 const useToast = () => {
@@ -63,9 +142,9 @@ const saveNotificationSettings = (settings) => {
   console.log("Saving notification settings:", settings);
 };
 
-const sendBinOverflowNotification = (binId, location) => {
-  console.log(`Bin ${binId} at ${location} is overflowing!`);
-  alert(`Bin ${binId} at ${location} is overflowing!`);
+const sendBinOverflowNotification = (binId, binLocationText) => {
+  console.log(`Bin ${binId} at ${binLocationText || 'unknown location'} is overflowing!`);
+  alert(`Bin ${binId} at ${binLocationText || 'unknown location'} is overflowing!`);
 };
 
 // Mock Tabs components until we create the proper components
@@ -76,8 +155,10 @@ const TabsTrigger = ({ children, value }) => <button className="px-4 py-2 rounde
 export const Dashboard = () => {
   const { currentUser } = useAuth();
   const userId = currentUser?.uid;
+  const navigate = useNavigate();
+  const location = useLocation();
   const [binId, setBinId] = useState("");
-  const [location, setLocation] = useState("");
+  const [binLocation, setBinLocation] = useState("");
   const [isConnecting, setIsConnecting] = useState(false);
   const [connected, setConnected] = useState(false);
   const [binData, setBinData] = useState(null);
@@ -91,6 +172,40 @@ export const Dashboard = () => {
   const [actionError, setActionError] = useState(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [previousFillLevel, setPreviousFillLevel] = useState(0);
+  
+  // Navigation state
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [activeLink, setActiveLink] = useState("/dashboard"); // Set to dashboard initially
+  const [hasNotification, setHasNotification] = useState(true);
+  const [isSticky, setIsSticky] = useState(false);
+  
+  // Update active link based on current location
+  useEffect(() => {
+    setActiveLink(location.pathname);
+  }, [location]);
+
+  // Track scroll position for navbar appearance change
+  useEffect(() => {
+    const handleScroll = () => {
+      // Check if page is scrolled
+      if (window.scrollY > 20) {
+        setIsScrolled(true);
+      } else {
+        setIsScrolled(false);
+      }
+      
+      // Check if we should apply sticky effect
+      if (window.scrollY > 300) {
+        setIsSticky(true);
+      } else {
+        setIsSticky(false);
+      }
+    };
+    
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   // Request notification permissions when component mounts
   useEffect(() => {
@@ -114,7 +229,7 @@ export const Dashboard = () => {
       
       if (savedBinId) {
         setBinId(savedBinId);
-        setLocation(savedLocation || "");
+        setBinLocation(savedLocation || "");
         
         // Auto-connect if we have a saved bin ID
         if (savedBinId) {
@@ -192,7 +307,7 @@ export const Dashboard = () => {
                   
     return {
       binId: id,
-      location: location || "Default Location",
+      location: binLocation || "Default Location",
       distance: Math.floor(Math.random() * 40) + 5, // 5 to 45cm
       fillPercentage,
       batteryLevel: Math.floor(Math.random() * 30) + 70, // 70 to 100%
@@ -222,7 +337,7 @@ export const Dashboard = () => {
   };
 
   // Function to connect to the bin
-  const handleConnect = async (binIdToConnect = binId, locationToConnect = location) => {
+  const handleConnect = async (binIdToConnect = binId, locationToConnect = binLocation) => {
     if (!binIdToConnect) {
       setError("Please enter a bin ID");
       return;
@@ -239,7 +354,7 @@ export const Dashboard = () => {
         
         // If no location was provided, use the one from the bin data
         if (!locationToConnect && data.location) {
-          setLocation(data.location);
+          setBinLocation(data.location);
           locationToConnect = data.location;
         }
         
@@ -256,8 +371,12 @@ export const Dashboard = () => {
         
         // Save the bin ID and location to local storage for this user
         if (userId) {
+          try {
           localStorage.setItem(`smartbin_${userId}_binId`, binIdToConnect);
           localStorage.setItem(`smartbin_${userId}_location`, locationToConnect || "");
+          } catch (err) {
+            console.error("Error saving to localStorage:", err);
+          }
         }
         
         // Set previous fill level for overflow detection
@@ -277,8 +396,12 @@ export const Dashboard = () => {
         
         // Save the bin ID to local storage for this user even in dev mode
         if (userId) {
+          try {
           localStorage.setItem(`smartbin_${userId}_binId`, binIdToConnect);
           localStorage.setItem(`smartbin_${userId}_location`, locationToConnect || "");
+          } catch (err) {
+            console.error("Error saving to localStorage:", err);
+          }
         }
         
         // Set previous fill level for overflow detection
@@ -295,10 +418,14 @@ export const Dashboard = () => {
     setBinData(null);
     setBinHistory([]);
     
-    // Remove the bin ID from local storage
+    // Remove saved bin ID from local storage
     if (userId) {
+      try {
       localStorage.removeItem(`smartbin_${userId}_binId`);
       localStorage.removeItem(`smartbin_${userId}_location`);
+      } catch (err) {
+        console.error("Error removing from localStorage:", err);
+      }
     }
   };
 
@@ -524,7 +651,7 @@ export const Dashboard = () => {
     if (connected && binId) {
       // Test push notification if enabled
       if (notificationsEnabled) {
-        sendBinOverflowNotification(binId, location);
+        sendBinOverflowNotification(binId, binLocation);
       }
       
       // Always test email notification
@@ -532,7 +659,7 @@ export const Dashboard = () => {
         try {
           await sendBinOverflowEmail(userId, {
             binId,
-            location: location || "Test Location",
+            location: binLocation || "Test Location",
             fillPercentage: 85,
             status: "critical"
           });
@@ -557,31 +684,54 @@ export const Dashboard = () => {
     }
   };
 
-  // Inside the Dashboard component, add notification setup to the useEffect
+  // Existing bin data for testing
   useEffect(() => {
+    if (userId) {
+      // Initialize Firebase messaging and request permission
     const initNotifications = async () => {
       try {
-        // Initialize FCM
-        const messaging = initializeMessaging();
-        
+          // Initialize Firebase messaging
+          const messaging = await initializeMessaging();
         if (messaging) {
-          // Request permission and get token
-          const fcmToken = await requestNotificationPermission();
-          
-          if (fcmToken) {
-            // Save token to user profile
-            const user = currentUser;
-            if (user) {
-              const saved = await saveFcmToken(user.uid, fcmToken);
-              console.log("FCM token saved:", saved);
-            }
-            
-            // Set up message listener for foreground notifications
+            // Set up message listener
             setupMessageListener((payload) => {
-              console.log("Received notification:", payload);
-              // Refresh data when notification is received
-              fetchBinData();
+              console.log("Received message:", payload);
+              // Refresh data when a notification is received
+              fetchBinData(binId);
             });
+            
+            // Request permission
+            const permissionGranted = await requestNotificationPermission();
+            setNotificationsEnabled(permissionGranted);
+            
+            if (permissionGranted) {
+              // Get FCM token and save it
+              const fcmToken = await messaging.getToken();
+          if (fcmToken) {
+                // Save to our backend
+                const tokenSaved = await saveFcmToken(userId, fcmToken);
+                console.log("FCM token saved:", tokenSaved);
+                
+                // Test push notification if enabled
+                if (notificationsEnabled) {
+                  sendBinOverflowNotification(binId, binLocation);
+                }
+                
+                // Also test email notification for development
+                if (import.meta.env.DEV && notificationsEnabled) {
+                  try {
+                    await sendBinOverflowEmail(userId, {
+                      binId,
+                      location: binLocation || "Test Location",
+                      fillPercentage: 85,
+                      status: "critical"
+                    });
+                    console.log("Test email notification sent successfully");
+                  } catch (emailErr) {
+                    console.error("Error sending test email notification:", emailErr);
+                  }
+                }
+              }
           }
         }
       } catch (error) {
@@ -596,15 +746,267 @@ export const Dashboard = () => {
     
     // Existing code for fetching data
     fetchBinData();
+    }
   }, [currentUser]);
 
+  // Navigation menu items data with icons for better visual cues
+  const navItems = [
+    { 
+      label: "Home", 
+      hasDropdown: false, 
+      href: "/",
+      icon: <HomeIcon size={16} />,
+      isScroll: false
+    },
+    { 
+      label: "About Us", 
+      hasDropdown: false, 
+      href: "/about",
+      icon: <Info size={16} />,
+      isScroll: false
+    },
+    { 
+      label: "Dashboard", 
+      hasDropdown: false, 
+      href: "/dashboard",
+      icon: <BarChart3 size={16} />,
+      isScroll: false
+    },
+    { 
+      label: "Contact", 
+      hasDropdown: false, 
+      href: "#contact-section",
+      icon: <Mail size={16} />,
+      isScroll: true,
+      sectionId: "contact-section"
+    }
+  ];
+
+  // Handle navigation or scrolling
+  const handleNavigation = (e, item) => {
+    e.preventDefault();
+    
+    if (item.isScroll) {
+      // For scroll items
+      scrollToSection(item.sectionId);
+      setActiveLink(item.href);
+    } else {
+      // For page navigation
+      setActiveLink(item.href);
+      navigate(item.href);
+    }
+    
+    setMobileMenuOpen(false);
+  };
+  
+  // Function to scroll to a section
+  const scrollToSection = (sectionId) => {
+    const element = document.getElementById(sectionId);
+    if (element) {
+      // If not on homepage, navigate there first, then scroll
+      const currentPathname = location.pathname;
+      if (currentPathname !== '/') {
+        navigate('/');
+        // Need to wait for navigation to complete before scrolling
+        setTimeout(() => {
+          element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 100);
+      } else {
+        // Already on homepage, just scroll
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+  };
+
+  // Classes for the navbar based on scroll position
+  const navbarClasses = `fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+    isScrolled 
+      ? "bg-white/95 backdrop-blur-md shadow-lg py-2" 
+      : "bg-transparent py-4"
+  } ${
+    isSticky 
+      ? "transform-none" 
+      : mobileMenuOpen ? "transform-none" : "md:translate-y-0"
+  }`;
+
   return (
-    <div className="py-8 px-4 md:px-6 lg:px-8">
+    <div className="min-h-screen bg-gradient-to-br from-[#f0ffe8] to-white">
+      {/* Add style tag for leaf animations */}
+      <style dangerouslySetInnerHTML={{ __html: leafAnimationStyles }}></style>
+      
+      {/* Enhanced Navigation Header */}
+      <header className={navbarClasses}>
+        <div className="container mx-auto px-4 md:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            {/* Logo with enhanced animation */}
+            <div 
+              className="flex items-center gap-3 group cursor-pointer"
+              onClick={() => navigate('/')}
+            >
+              <div className="relative">
+                <div className="absolute inset-0 bg-[#61e923] blur-md opacity-50 rounded-full group-hover:scale-110 transition-transform duration-300"></div>
+                <img
+                  className="w-10 h-10 object-cover relative z-10 group-hover:rotate-[360deg] transition-transform duration-700"
+                  alt="Logo"
+                  src="/images/image-5.png"
+                  onError={(e) => { 
+                    e.target.src = 'https://placehold.co/80x80/e8fbde/61e923?text=SW' 
+                  }}
+                />
+              </div>
+              <div className="hidden md:block">
+                <h1 className="font-bold text-xl text-gray-900 group-hover:text-[#4db31e] transition-colors duration-300">
+                  SmartWaste
+                </h1>
+                <p className="text-xs text-gray-500 transform group-hover:translate-x-1 transition-transform duration-300">
+                  Intelligent Management
+                </p>
+              </div>
+            </div>
+            
+            {/* Desktop Navigation - Enhanced version */}
+            <div className="hidden md:block">
+              <NavigationMenu className="max-w-none">
+                <NavigationMenuList className="flex items-center gap-1">
+                  {navItems.map((item, index) => (
+                    <NavigationMenuItem key={index}>
+                      <div
+                        className={`relative px-4 py-2 cursor-pointer rounded-lg group transition-all duration-300 
+                          ${activeLink === item.href 
+                            ? 'text-[#4db31e] bg-[#61e923]/10' 
+                            : 'text-gray-700 hover:text-[#4db31e] hover:bg-[#61e923]/10'}`}
+                        onClick={(e) => handleNavigation(e, item)}
+                      >
+                        <span className="absolute inset-0 bg-gradient-to-r from-[#61e923]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-md"></span>
+                        <div className="relative z-10 flex items-center gap-2">
+                          {item.icon}
+                          <span>{item.label}</span>
+                        </div>
+                        
+                        {/* Animated underline indicator */}
+                        <div 
+                          className={`absolute bottom-1 left-1/2 transform -translate-x-1/2 h-0.5 bg-[#61e923] rounded-full transition-all duration-300 
+                          ${activeLink === item.href ? 'w-3/4' : 'w-0 group-hover:w-1/2'}`}
+                        ></div>
+                      </div>
+                    </NavigationMenuItem>
+                  ))}
+                  
+                  {/* Notification bell with indicator */}
+                  <NavigationMenuItem>
+                    <div className="relative ml-2 cursor-pointer p-2 rounded-full hover:bg-[#61e923]/10 transition-colors duration-300 group">
+                      <span className="absolute inset-0 rounded-full bg-gradient-to-r from-[#61e923]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-sm"></span>
+                      <Bell size={20} className="relative z-10 text-gray-600 hover:text-[#4db31e] transition-colors duration-300 group-hover:rotate-12 transform transition-transform" />
+                      {hasNotification && (
+                        <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse z-20"></span>
+                      )}
+                    </div>
+                  </NavigationMenuItem>
+                </NavigationMenuList>
+              </NavigationMenu>
+            </div>
+
+            {/* Right Side Actions - Enhanced buttons */}
+            <div className="flex items-center gap-4">
+              {/* User Actions */}
+              <div className="hidden sm:flex items-center gap-3">
+                <Button 
+                  variant="ghost"
+                  className="relative overflow-hidden text-gray-700 hover:text-[#4db31e] hover:bg-[#61e923]/10 border-none flex items-center gap-2 px-4 py-2 rounded-lg group transition-all duration-300"
+                  onClick={() => navigate('/login')}
+                >
+                  <span className="absolute inset-0 bg-gradient-to-r from-[#61e923]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-md"></span>
+                  <span className="relative z-10 flex items-center gap-2">
+                    <LogIn size={16} className="group-hover:rotate-12 transition-transform duration-300" />
+                    <span>Sign In</span>
+                  </span>
+                </Button>
+                <Button 
+                  className="relative overflow-hidden bg-[#61e923] hover:bg-[#4db31e] text-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 border-none transform hover:-translate-y-1 active:translate-y-0 px-5 py-2 group"
+                  onClick={() => navigate('/signup')}
+                >
+                  <span className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl"></span>
+                  <span className="relative z-10">Get Started</span>
+                </Button>
+              </div>
+
+              {/* Mobile Menu Button with enhanced animation */}
+              <button 
+                className="inline-flex md:hidden items-center justify-center p-2 rounded-md text-gray-700 hover:text-[#4db31e] hover:bg-[#61e923]/10 transition-colors duration-300 focus:outline-none relative overflow-hidden group"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
+              >
+                <span className="absolute inset-0 bg-gradient-to-r from-[#61e923]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-md"></span>
+                <div className="relative w-6 h-6 z-10">
+                  <span 
+                    className={`absolute block w-6 h-0.5 bg-current transform transition-all duration-300 ease-in-out ${
+                      mobileMenuOpen ? 'rotate-45 top-3' : 'top-2'
+                    }`}
+                  ></span>
+                  <span 
+                    className={`absolute block w-6 h-0.5 bg-current transform transition-all duration-300 ease-in-out ${
+                      mobileMenuOpen ? 'opacity-0' : 'opacity-100'
+                    } top-3`}
+                  ></span>
+                  <span 
+                    className={`absolute block w-6 h-0.5 bg-current transform transition-all duration-300 ease-in-out ${
+                      mobileMenuOpen ? '-rotate-45 top-3' : 'top-4'
+                    }`}
+                  ></span>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Enhanced Mobile Menu with glass morphism and animations */}
+        <div 
+          className={`md:hidden transition-all duration-500 overflow-hidden ${
+            mobileMenuOpen 
+              ? 'max-h-[500px] opacity-100 backdrop-blur-md bg-white/90' 
+              : 'max-h-0 opacity-0'
+          }`}
+        >
+          <div className="container mx-auto px-4 pb-6 pt-2">
+            <div className="flex flex-col gap-2">
+              {navItems.map((item, index) => (
+                <a
+                  key={index}
+                  href={item.href}
+                  className={`flex items-center gap-3 px-4 py-4 rounded-xl transition-all duration-300 relative overflow-hidden group ${
+                    activeLink === item.href 
+                      ? 'bg-[#61e923]/15 text-[#4db31e]' 
+                      : 'text-gray-700 hover:bg-[#61e923]/10 hover:text-[#4db31e]'
+                  }`}
+                  onClick={(e) => handleNavigation(e, item)}
+                  style={{animationDelay: `${index * 0.1}s`}}
+                >
+                  <span className={`absolute inset-0 bg-gradient-to-r from-[#61e923]/20 to-transparent opacity-0 ${activeLink === item.href ? 'opacity-30' : 'group-hover:opacity-20'} transition-opacity duration-300 blur-md`}></span>
+                  <div className="relative z-10 flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-[#61e923]/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                      {item.icon}
+                    </div>
+                    <span className="font-medium">{item.label}</span>
+                    
+                    {/* Animated indicator for active link */}
+                    {activeLink === item.href && (
+                      <div className="ml-auto w-1.5 h-1.5 rounded-full bg-[#4db31e]"></div>
+                    )}
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        </div>
+      </header>
+      
+      {/* Main Dashboard Content - with spacing to account for fixed header */}
+      <main className="pt-40 pb-12 px-4 md:px-8 lg:px-16 container mx-auto bg-gradient-to-br from-[#f0ffe8]/50 to-white rounded-t-2xl">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
         <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2 md:mb-0">
           Smart Bin Dashboard
         </h1>
-        <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap justify-end">
           <Button 
             onClick={handleToggleNotifications}
             className={`flex items-center gap-2 ${notificationsEnabled ? 'bg-green-50 hover:bg-green-100 text-green-700' : 'bg-gray-50 hover:bg-gray-100 text-gray-700'}`}
@@ -658,8 +1060,8 @@ export const Dashboard = () => {
             </label>
             <Input
               placeholder="Enter bin location"
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
+                value={binLocation}
+                onChange={(e) => setBinLocation(e.target.value)}
               disabled={connected}
               className="w-full"
             />
@@ -671,7 +1073,7 @@ export const Dashboard = () => {
         <div className="mt-4 flex justify-center">
           {!connected ? (
             <Button
-              onClick={() => handleConnect(binId, location)}
+                onClick={() => handleConnect(binId, binLocation)}
               disabled={isConnecting || !binId}
               className="px-6 py-2 bg-primary text-white font-medium flex items-center gap-2"
             >
@@ -1033,6 +1435,7 @@ export const Dashboard = () => {
           </div>
         </div>
       )}
+      </main>
     </div>
   );
 }; 

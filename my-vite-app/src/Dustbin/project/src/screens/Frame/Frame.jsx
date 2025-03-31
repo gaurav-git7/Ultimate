@@ -1,5 +1,6 @@
 import { ChevronDownIcon } from "lucide-react";
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Avatar,
   AvatarFallback,
@@ -16,12 +17,13 @@ import {
 } from "../../components/ui/navigation-menu";
 
 export const Frame = () => {
+  const navigate = useNavigate();
+
   // Navigation menu items
   const navItems = [
-    { label: "Home Page", href: "#" },
-    { label: "About Us", href: "#" },
-    { label: "Services", href: "#" },
-    { label: "More Links", href: "#", hasDropdown: true },
+    { label: "Home Page", href: "/" },
+    { label: "About Us", href: "/about" },
+    { label: "Dashboard", href: "/dashboard" }
   ];
 
   // Dustbin data
@@ -70,7 +72,15 @@ export const Frame = () => {
                 <div className="flex items-center gap-8">
                   {navItems.map((item, index) => (
                     <NavigationMenuItem key={index}>
-                      <NavigationMenuLink className="font-text-regular-normal text-black text-base">
+                      <NavigationMenuLink 
+                        className="font-text-regular-normal text-black text-base"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          if (item.href && item.href !== "#") {
+                            navigate(item.href);
+                          }
+                        }}
+                      >
                         {item.label}
                         {item.hasDropdown && (
                           <ChevronDownIcon className="ml-1 h-5 w-5 inline" />

@@ -2,17 +2,17 @@
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/10.8.0/firebase-messaging-compat.js');
 
-// Firebase configuration - MUST match the config in your app
+// Firebase configuration with hardcoded values
+// Note: Service workers cannot access environment variables, so we need to hardcode the values
 firebase.initializeApp({
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
+  apiKey: "AIzaSyAUzefEnnQsgERlBKeqfBcaY9cqGUbylkA",
+  authDomain: "wastefoodmanagement-48e25.firebaseapp.com",
+  projectId: "wastefoodmanagement-48e25",
+  storageBucket: "wastefoodmanagement-48e25.firebasestorage.app",
+  messagingSenderId: "935643868580",
+  appId: "1:935643868580:web:52aa60abe42423100ce531",
+  measurementId: "G-80DCRL63DY"
 });
-
 
 const messaging = firebase.messaging();
 

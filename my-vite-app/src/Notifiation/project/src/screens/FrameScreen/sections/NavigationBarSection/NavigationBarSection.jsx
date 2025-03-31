@@ -1,5 +1,6 @@
 import { ChevronDownIcon } from "lucide-react";
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -10,11 +11,13 @@ import {
 } from "../../../../components/ui/navigation-menu";
 
 export const NavigationBarSection = () => {
+  const navigate = useNavigate();
+
   // Navigation menu items data
   const menuItems = [
-    { label: "Home Page", href: "#" },
-    { label: "About Us", href: "#" },
-    { label: "Services", href: "#" },
+    { label: "Home Page", href: "/" },
+    { label: "About Us", href: "/about" },
+    { label: "Dashboard", href: "/dashboard" },
   ];
 
   return (
@@ -34,32 +37,16 @@ export const NavigationBarSection = () => {
                   <NavigationMenuItem key={index}>
                     <NavigationMenuLink
                       href={item.href}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        navigate(item.href);
+                      }}
                       className="font-text-regular-normal text-base leading-4 text-black"
                     >
                       {item.label}
                     </NavigationMenuLink>
                   </NavigationMenuItem>
                 ))}
-
-                <NavigationMenuItem>
-                  <NavigationMenuTrigger className="font-text-regular-normal text-base leading-4 text-black flex items-center gap-1 bg-transparent hover:bg-transparent focus:bg-transparent">
-                    More Links
-                    <ChevronDownIcon className="w-6 h-6" />
-                  </NavigationMenuTrigger>
-                  <NavigationMenuContent>
-                    <ul className="grid w-[200px] gap-3 p-4">
-                      <li>
-                        <NavigationMenuLink href="#">Link 1</NavigationMenuLink>
-                      </li>
-                      <li>
-                        <NavigationMenuLink href="#">Link 2</NavigationMenuLink>
-                      </li>
-                      <li>
-                        <NavigationMenuLink href="#">Link 3</NavigationMenuLink>
-                      </li>
-                    </ul>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
               </NavigationMenuList>
             </NavigationMenu>
 

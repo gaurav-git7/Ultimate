@@ -5,6 +5,7 @@ import { Login } from "./Log/project/src/screens/Login/Login";
 import { SignUp } from "./Log/project/src/screens/SignUp/SignUp";
 import { Box } from "./Home_after/project/src/screens/Box/Box";
 import { Profile } from "./Home_after/project/src/screens/Box/profile/Profile";
+import { AboutUs } from "./AboutUs/AboutUs";
 import { AuthProvider, useAuth } from './firebase/AuthContext';
 
 // Protected route component
@@ -41,6 +42,7 @@ function AppContent() {
       <div className="min-h-screen bg-gray-100">
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/about" element={<AboutUs />} />
           <Route 
             path="/login" 
             element={
