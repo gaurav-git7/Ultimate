@@ -7,6 +7,7 @@ import { Box } from "./Home_after/project/src/screens/Box/Box";
 import { Profile } from "./Home_after/project/src/screens/Box/profile/Profile";
 import { AboutUs } from "./AboutUs/AboutUs";
 import { AuthProvider, useAuth } from './firebase/AuthContext';
+import { DustbinPage } from "./Dustbin/DustbinPage";
 
 // Protected route component
 const ProtectedRoute = ({ children }) => {
@@ -72,6 +73,14 @@ function AppContent() {
             element={
               <ProtectedRoute>
                 <Profile />
+              </ProtectedRoute>
+            } 
+          />
+          <Route 
+            path="/dustbin" 
+            element={
+              <ProtectedRoute>
+                <Navigate to="/dashboard" />
               </ProtectedRoute>
             } 
           />

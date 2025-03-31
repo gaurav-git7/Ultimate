@@ -1,17 +1,22 @@
-import { ChevronDownIcon, Menu, X, LogIn, Home as HomeIcon, Info, BarChart3, Mail, Bell } from "lucide-react";
+import { Menu, X, LogIn, Home as HomeIcon, Info, BarChart3, Mail, Bell, UserIcon, LogOut, UserPlus } from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { Button } from "../../../../components/ui/button";
+import { Button } from "../../../../../../../components/ui/button";
 import {
   NavigationMenu,
-  NavigationMenuContent,
   NavigationMenuItem,
   NavigationMenuLink,
   NavigationMenuList,
-  NavigationMenuTrigger,
-} from "../../../../components/ui/navigation-menu";
+} from "../../../../../../../components/ui/navigation-menu";
+import { useAuth } from "../../../../../../../firebase/AuthContext";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "../../../../../../../components/ui/avatar";
 
 export const FeaturesSection = () => {
+  const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isScrolled, setIsScrolled] = useState(false);
@@ -169,7 +174,8 @@ export const FeaturesSection = () => {
                           : 'text-gray-700 hover:text-[#4db31e] hover:bg-[#61e923]/10'}`}
                       onClick={(e) => handleNavigation(e, item)}
                     >
-                      <div className="flex items-center gap-2">
+                      <span className="absolute inset-0 bg-gradient-to-r from-[#61e923]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-md"></span>
+                      <div className="relative z-10 flex items-center gap-2">
                         {item.icon}
                         <span>{item.label}</span>
                       </div>
@@ -185,10 +191,11 @@ export const FeaturesSection = () => {
                 
                 {/* Notification bell with indicator */}
                 <NavigationMenuItem>
-                  <div className="relative ml-2 cursor-pointer p-2 rounded-full hover:bg-[#61e923]/10 transition-colors duration-300">
-                    <Bell size={20} className="text-gray-600 hover:text-[#4db31e] transition-colors duration-300" />
+                  <div className="relative ml-2 cursor-pointer p-2 rounded-full hover:bg-[#61e923]/10 transition-colors duration-300 group">
+                    <span className="absolute inset-0 rounded-full bg-gradient-to-r from-[#61e923]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-sm"></span>
+                    <Bell size={20} className="relative z-10 text-gray-600 hover:text-[#4db31e] transition-colors duration-300 group-hover:rotate-12 transform transition-transform" />
                     {hasNotification && (
-                      <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+                      <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full animate-pulse z-20"></span>
                     )}
                   </div>
                 </NavigationMenuItem>
@@ -196,29 +203,59 @@ export const FeaturesSection = () => {
             </NavigationMenu>
           </div>
 
-          {/* Right Side Actions - Enhanced buttons */}
+          {/* Right Side Actions - Enhanced buttons with Avatar */}
           <div className="flex items-center gap-4">
             {/* User Actions */}
             <div className="hidden sm:flex items-center gap-3">
-              <Button 
-                variant="ghost"
-                className="relative overflow-hidden text-gray-700 hover:text-[#4db31e] hover:bg-[#61e923]/10 border-none flex items-center gap-2 px-4 py-2 rounded-lg group transition-all duration-300"
-                onClick={() => navigate('/login')}
-              >
-                <span className="absolute inset-0 bg-gradient-to-r from-[#61e923]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-md"></span>
-                <span className="relative z-10 flex items-center gap-2">
-                  <LogIn size={16} className="group-hover:rotate-12 transition-transform duration-300" />
-                  <span>Sign In</span>
-                </span>
-              </Button>
-              <Button 
-                className="relative overflow-hidden bg-[#61e923] hover:bg-[#4db31e] text-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 border-none transform hover:-translate-y-1 active:translate-y-0 px-5 py-2 group"
-                onClick={() => navigate('/signup')}
-              >
-                <span className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl"></span>
-                <span className="relative z-10">Get Started</span>
-              </Button>
+              {!currentUser ? (
+                <>
+                  <Button 
+                    className="relative overflow-hidden text-[#4db31e] hover:text-white bg-white hover:bg-[#61e923] border border-[#61e923]/40 hover:border-transparent rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 active:translate-y-0 px-4 py-1.5 group"
+                    onClick={() => navigate('/login')}
+                  >
+                    <span className="absolute inset-0 bg-gradient-to-r from-[#61e923]/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl"></span>
+                    <span className="relative z-10 flex items-center gap-2">
+                      <LogIn size={16} className="group-hover:rotate-12 transition-transform duration-300" />
+                      <span>Sign In</span>
+                    </span>
+                  </Button>
+                  <Button 
+                    className="relative overflow-hidden bg-[#61e923] hover:bg-[#4db31e] text-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 border-none transform hover:-translate-y-1 active:translate-y-0 px-5 py-2 group"
+                    onClick={() => navigate('/signup')}
+                  >
+                    <span className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl"></span>
+                    <span className="relative z-10">Get Started</span>
+                  </Button>
+                </>
+              ) : (
+                <Button 
+                  className="relative overflow-hidden text-red-500 hover:text-white bg-white hover:bg-red-500 border border-red-300 hover:border-transparent rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 active:translate-y-0 px-4 py-1.5 group"
+                  onClick={() => {
+                    logout && logout();
+                    navigate('/login');
+                  }}
+                >
+                  <span className="absolute inset-0 bg-gradient-to-r from-red-300/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl"></span>
+                  <span className="relative z-10 flex items-center gap-2">
+                    <LogOut size={16} className="group-hover:rotate-12 transition-transform duration-300" />
+                    <span>Sign Out</span>
+                  </span>
+                </Button>
+              )}
             </div>
+
+            {/* Account Avatar - Always visible on all screen sizes */}
+            <Avatar className="h-12 w-12 cursor-pointer border-2 border-[#61e923]/30 hover:border-[#61e923] transition-all duration-300 shadow-lg hover:shadow-xl bg-white/90 relative">
+              <div className="absolute inset-0 bg-[#61e923]/20 rounded-full blur-sm opacity-50 group-hover:opacity-80 transition-opacity duration-300"></div>
+              {currentUser?.photoURL ? (
+                <AvatarImage src={currentUser.photoURL} alt={currentUser.displayName || "User"} className="relative z-10" />
+              ) : (
+                <AvatarImage src="/images/avatar.jpg" alt="User" className="relative z-10" />
+              )}
+              <AvatarFallback className="bg-[#61e923]/10 text-[#4db31e] relative z-10">
+                {currentUser?.displayName ? currentUser.displayName.charAt(0).toUpperCase() : <UserIcon size={22} />}
+              </AvatarFallback>
+            </Avatar>
 
             {/* Mobile Menu Button with enhanced animation */}
             <button 
@@ -286,38 +323,75 @@ export const FeaturesSection = () => {
               </a>
             ))}
             
-            <div className="flex flex-col sm:hidden gap-3 mt-6 pt-6 border-t border-gray-100">
-              <Button 
-                variant="ghost"
-                className="w-full justify-center text-gray-700 hover:text-[#4db31e] hover:bg-[#61e923]/10 flex items-center gap-2"
-                onClick={() => navigate('/login')}
-              >
-                <LogIn size={18} />
-                <span>Sign In</span>
-              </Button>
-              <Button 
-                className="w-full justify-center bg-[#61e923] hover:bg-[#4db31e] text-white rounded-lg shadow-md hover:shadow-lg transition-all duration-300"
-                onClick={() => navigate('/signup')}
-              >
-                <span>Get Started</span>
-              </Button>
-            </div>
-            
-            {/* Social proof */}
-            <div className="flex items-center gap-2 mt-6 pt-4 border-t border-gray-100">
-              <div className="flex -space-x-2">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="w-8 h-8 rounded-full bg-gray-200 border-2 border-white flex items-center justify-center overflow-hidden">
-                    <img 
-                      src={`/images/avatar-${i}.png`} 
-                      alt="User" 
-                      className="w-full h-full object-cover" 
-                      onError={(e) => { e.target.src = '/images/image-5.png' }} 
-                    />
+            {/* Authentication links for mobile */}
+            <div className="mt-4 pt-4 border-t border-gray-100">
+              {!currentUser ? (
+                <>
+                  <a 
+                    href="/login"
+                    className="flex items-center gap-3 px-4 py-4 rounded-xl transition-all duration-300 relative overflow-hidden group text-gray-700 hover:bg-[#61e923]/10 hover:text-[#4db31e]"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setMobileMenuOpen(false);
+                      navigate('/login');
+                    }}
+                  >
+                    <span className="absolute inset-0 bg-gradient-to-r from-[#61e923]/20 to-transparent opacity-0 group-hover:opacity-20 transition-opacity duration-300 blur-md"></span>
+                    <div className="relative z-10 flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-[#61e923]/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                        <LogIn size={18} />
+                      </div>
+                      <span className="font-medium">Sign In</span>
+                    </div>
+                  </a>
+                  
+                  <a 
+                    href="/signup"
+                    className="flex items-center gap-3 px-4 py-4 rounded-xl transition-all duration-300 relative overflow-hidden group text-gray-700 hover:bg-[#61e923]/10 hover:text-[#4db31e]"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setMobileMenuOpen(false);
+                      navigate('/signup');
+                    }}
+                  >
+                    <span className="absolute inset-0 bg-gradient-to-r from-[#61e923]/20 to-transparent opacity-0 group-hover:opacity-20 transition-opacity duration-300 blur-md"></span>
+                    <div className="relative z-10 flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-[#61e923]/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                        <UserPlus size={18} />
+                      </div>
+                      <span className="font-medium">Sign Up</span>
+                    </div>
+                  </a>
+                </>
+              ) : (
+                <a 
+                  href="/login"
+                  className="flex items-center gap-3 px-4 py-4 rounded-xl transition-all duration-300 relative overflow-hidden group text-red-500 hover:bg-red-50 hover:text-red-600"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setMobileMenuOpen(false);
+                    logout && logout();
+                    navigate('/login');
+                  }}
+                >
+                  <span className="absolute inset-0 bg-gradient-to-r from-red-100 to-transparent opacity-0 group-hover:opacity-20 transition-opacity duration-300 blur-md"></span>
+                  <div className="relative z-10 flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                      <LogOut size={18} className="text-red-500" />
+                    </div>
+                    <span className="font-medium">Sign Out</span>
                   </div>
-                ))}
-              </div>
-              <span className="text-sm text-gray-600">Joined by 2,000+ users</span>
+                </a>
+              )}
+              
+              {currentUser && (
+                <div className="flex items-center gap-3 px-4 py-4 opacity-70">
+                  <span className="text-sm text-gray-500">Signed in as:</span>
+                  <span className="text-sm font-medium truncate max-w-[180px]">
+                    {currentUser.displayName || currentUser.email || "User"}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>

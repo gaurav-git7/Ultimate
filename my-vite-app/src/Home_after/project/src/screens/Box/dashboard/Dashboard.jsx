@@ -22,7 +22,10 @@ import {
   Mail, 
   Bell,
   Menu,
-  X
+  X,
+  UserIcon,
+  LogOut,
+  UserPlus
 } from "lucide-react";
 import { Button } from "../../../../../../components/ui/button.jsx";
 import { Input } from "../../../../../../components/ui/input.jsx";
@@ -55,6 +58,11 @@ import {
   sendBinStatusEmail,
   sendCollectionScheduledEmail
 } from "../../../../../../lib/emailNotifications";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "../../../../../../components/ui/avatar.jsx";
 
 // Add CSS animations for the leaf elements
 const leafAnimationStyles = `
@@ -153,7 +161,7 @@ const TabsList = ({ children }) => <div className="flex gap-2">{children}</div>;
 const TabsTrigger = ({ children, value }) => <button className="px-4 py-2 rounded hover:bg-gray-100">{children}</button>;
 
 export const Dashboard = () => {
-  const { currentUser } = useAuth();
+  const { currentUser, logout } = useAuth();
   const userId = currentUser?.uid;
   const navigate = useNavigate();
   const location = useLocation();
@@ -906,29 +914,59 @@ export const Dashboard = () => {
               </NavigationMenu>
             </div>
 
-            {/* Right Side Actions - Enhanced buttons */}
+            {/* Right Side Actions - Enhanced buttons with Avatar */}
             <div className="flex items-center gap-4">
               {/* User Actions */}
               <div className="hidden sm:flex items-center gap-3">
-                <Button 
-                  variant="ghost"
-                  className="relative overflow-hidden text-gray-700 hover:text-[#4db31e] hover:bg-[#61e923]/10 border-none flex items-center gap-2 px-4 py-2 rounded-lg group transition-all duration-300"
-                  onClick={() => navigate('/login')}
-                >
-                  <span className="absolute inset-0 bg-gradient-to-r from-[#61e923]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-md"></span>
-                  <span className="relative z-10 flex items-center gap-2">
-                    <LogIn size={16} className="group-hover:rotate-12 transition-transform duration-300" />
-                    <span>Sign In</span>
-                  </span>
-                </Button>
-                <Button 
-                  className="relative overflow-hidden bg-[#61e923] hover:bg-[#4db31e] text-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 border-none transform hover:-translate-y-1 active:translate-y-0 px-5 py-2 group"
-                  onClick={() => navigate('/signup')}
-                >
-                  <span className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl"></span>
-                  <span className="relative z-10">Get Started</span>
-                </Button>
+                {!currentUser ? (
+                  <>
+                    <Button 
+                      className="relative overflow-hidden text-[#4db31e] hover:text-white bg-white hover:bg-[#61e923] border border-[#61e923]/40 hover:border-transparent rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 active:translate-y-0 px-4 py-1.5 group"
+                      onClick={() => navigate('/login')}
+                    >
+                      <span className="absolute inset-0 bg-gradient-to-r from-[#61e923]/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl"></span>
+                      <span className="relative z-10 flex items-center gap-2">
+                        <LogIn size={16} className="group-hover:rotate-12 transition-transform duration-300" />
+                        <span>Sign In</span>
+                      </span>
+                    </Button>
+                    <Button 
+                      className="relative overflow-hidden bg-[#61e923] hover:bg-[#4db31e] text-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 border-none transform hover:-translate-y-1 active:translate-y-0 px-5 py-2 group"
+                      onClick={() => navigate('/signup')}
+                    >
+                      <span className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl"></span>
+                      <span className="relative z-10">Get Started</span>
+                    </Button>
+                  </>
+                ) : (
+                  <Button 
+                    className="relative overflow-hidden text-red-500 hover:text-white bg-white hover:bg-red-500 border border-red-300 hover:border-transparent rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 active:translate-y-0 px-4 py-1.5 group"
+                    onClick={() => {
+                      logout && logout();
+                      navigate('/login');
+                    }}
+                  >
+                    <span className="absolute inset-0 bg-gradient-to-r from-red-300/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl"></span>
+                    <span className="relative z-10 flex items-center gap-2">
+                      <LogOut size={16} className="group-hover:rotate-12 transition-transform duration-300" />
+                      <span>Sign Out</span>
+                    </span>
+                  </Button>
+                )}
               </div>
+
+              {/* Account Avatar - Always visible on all screen sizes */}
+              <Avatar className="h-12 w-12 cursor-pointer border-2 border-[#61e923]/30 hover:border-[#61e923] transition-all duration-300 shadow-lg hover:shadow-xl bg-white/90 relative">
+                <div className="absolute inset-0 bg-[#61e923]/20 rounded-full blur-sm opacity-50 group-hover:opacity-80 transition-opacity duration-300"></div>
+                {currentUser?.photoURL ? (
+                  <AvatarImage src={currentUser.photoURL} alt={currentUser.displayName || "User"} className="relative z-10" />
+                ) : (
+                  <AvatarImage src="/images/avatar.jpg" alt="User" className="relative z-10" />
+                )}
+                <AvatarFallback className="bg-[#61e923]/10 text-[#4db31e] relative z-10">
+                  {currentUser?.displayName ? currentUser.displayName.charAt(0).toUpperCase() : <UserIcon size={22} />}
+                </AvatarFallback>
+              </Avatar>
 
               {/* Mobile Menu Button with enhanced animation */}
               <button 
@@ -995,6 +1033,77 @@ export const Dashboard = () => {
                   </div>
                 </a>
               ))}
+              
+              {/* Authentication links for mobile */}
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                {!currentUser ? (
+                  <>
+                    <a 
+                      href="/login"
+                      className="flex items-center gap-3 px-4 py-4 rounded-xl transition-all duration-300 relative overflow-hidden group text-gray-700 hover:bg-[#61e923]/10 hover:text-[#4db31e]"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setMobileMenuOpen(false);
+                        navigate('/login');
+                      }}
+                    >
+                      <span className="absolute inset-0 bg-gradient-to-r from-[#61e923]/20 to-transparent opacity-0 group-hover:opacity-20 transition-opacity duration-300 blur-md"></span>
+                      <div className="relative z-10 flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-[#61e923]/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                          <LogIn size={18} />
+                        </div>
+                        <span className="font-medium">Sign In</span>
+                      </div>
+                    </a>
+                    
+                    <a 
+                      href="/signup"
+                      className="flex items-center gap-3 px-4 py-4 rounded-xl transition-all duration-300 relative overflow-hidden group text-gray-700 hover:bg-[#61e923]/10 hover:text-[#4db31e]"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setMobileMenuOpen(false);
+                        navigate('/signup');
+                      }}
+                    >
+                      <span className="absolute inset-0 bg-gradient-to-r from-[#61e923]/20 to-transparent opacity-0 group-hover:opacity-20 transition-opacity duration-300 blur-md"></span>
+                      <div className="relative z-10 flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-[#61e923]/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                          <UserPlus size={18} />
+                        </div>
+                        <span className="font-medium">Sign Up</span>
+                      </div>
+                    </a>
+                  </>
+                ) : (
+                  <a 
+                    href="/login"
+                    className="flex items-center gap-3 px-4 py-4 rounded-xl transition-all duration-300 relative overflow-hidden group text-red-500 hover:bg-red-50 hover:text-red-600"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setMobileMenuOpen(false);
+                      logout && logout();
+                      navigate('/login');
+                    }}
+                  >
+                    <span className="absolute inset-0 bg-gradient-to-r from-red-100 to-transparent opacity-0 group-hover:opacity-20 transition-opacity duration-300 blur-md"></span>
+                    <div className="relative z-10 flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                        <LogOut size={18} className="text-red-500" />
+                      </div>
+                      <span className="font-medium">Sign Out</span>
+                    </div>
+                  </a>
+                )}
+                
+                {currentUser && (
+                  <div className="flex items-center gap-3 px-4 py-4 opacity-70">
+                    <span className="text-sm text-gray-500">Signed in as:</span>
+                    <span className="text-sm font-medium truncate max-w-[180px]">
+                      {currentUser.displayName || currentUser.email || "User"}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>

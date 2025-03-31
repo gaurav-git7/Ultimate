@@ -7,7 +7,13 @@ import {
   NavigationMenuLink,
   NavigationMenuList,
 } from "../components/ui/navigation-menu";
-import { LogIn, Home as HomeIcon, Info, BarChart3, Mail, Bell } from "lucide-react";
+import { LogIn, Home as HomeIcon, Info, BarChart3, Mail, Bell, Menu, X, UserIcon, LogOut, UserPlus } from "lucide-react";
+import { useAuth } from "../firebase/AuthContext";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from "../components/ui/avatar";
 
 // Add CSS animations for the leaf elements
 const leafAnimationStyles = `
@@ -74,6 +80,7 @@ const leafAnimationStyles = `
 `;
 
 export const AboutUs = () => {
+  const { currentUser, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [isScrolled, setIsScrolled] = useState(false);
@@ -210,7 +217,7 @@ export const AboutUs = () => {
       image: "/images/sakshi.jpg"
     },
     {
-      name: "Vanshika",
+      name: "Vanshika Somnani",
       role: "Software Lead",
       bio: "Vanshika leads the software development, turning ideas into reality through robust and efficient code. She ensures that our application is scalable, secure, and high-performing.",
       image: "/images/vanshika.jpg"
@@ -218,7 +225,7 @@ export const AboutUs = () => {
   ];
 
   return (
-    <div className="flex flex-col w-full bg-white pt-16">
+    <div className="min-h-screen bg-white">
       {/* Add style tag for leaf animations */}
       <style dangerouslySetInnerHTML={{ __html: leafAnimationStyles }}></style>
       
@@ -294,29 +301,59 @@ export const AboutUs = () => {
               </NavigationMenu>
             </div>
 
-            {/* Right Side Actions - Enhanced buttons */}
+            {/* Right Side Actions - Enhanced buttons with Avatar */}
             <div className="flex items-center gap-4">
               {/* User Actions */}
               <div className="hidden sm:flex items-center gap-3">
-                <Button 
-                  variant="ghost"
-                  className="relative overflow-hidden text-gray-700 hover:text-[#4db31e] hover:bg-[#61e923]/10 border-none flex items-center gap-2 px-4 py-2 rounded-lg group transition-all duration-300"
-                  onClick={() => navigate('/login')}
-                >
-                  <span className="absolute inset-0 bg-gradient-to-r from-[#61e923]/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-md"></span>
-                  <span className="relative z-10 flex items-center gap-2">
-                    <LogIn size={16} className="group-hover:rotate-12 transition-transform duration-300" />
-                    <span>Sign In</span>
-                  </span>
-                </Button>
-                <Button 
-                  className="relative overflow-hidden bg-[#61e923] hover:bg-[#4db31e] text-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 border-none transform hover:-translate-y-1 active:translate-y-0 px-5 py-2 group"
-                  onClick={() => navigate('/signup')}
-                >
-                  <span className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl"></span>
-                  <span className="relative z-10">Get Started</span>
-                </Button>
+                {!currentUser ? (
+                  <>
+                    <Button 
+                      className="relative overflow-hidden text-[#4db31e] hover:text-white bg-white hover:bg-[#61e923] border border-[#61e923]/40 hover:border-transparent rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 active:translate-y-0 px-4 py-1.5 group"
+                      onClick={() => navigate('/login')}
+                    >
+                      <span className="absolute inset-0 bg-gradient-to-r from-[#61e923]/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl"></span>
+                      <span className="relative z-10 flex items-center gap-2">
+                        <LogIn size={16} className="group-hover:rotate-12 transition-transform duration-300" />
+                        <span>Sign In</span>
+                      </span>
+                    </Button>
+                    <Button 
+                      className="relative overflow-hidden bg-[#61e923] hover:bg-[#4db31e] text-white rounded-xl shadow-md hover:shadow-lg transition-all duration-300 border-none transform hover:-translate-y-1 active:translate-y-0 px-5 py-2 group"
+                      onClick={() => navigate('/signup')}
+                    >
+                      <span className="absolute inset-0 bg-gradient-to-r from-white/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl"></span>
+                      <span className="relative z-10">Get Started</span>
+                    </Button>
+                  </>
+                ) : (
+                  <Button 
+                    className="relative overflow-hidden text-red-500 hover:text-white bg-white hover:bg-red-500 border border-red-300 hover:border-transparent rounded-xl shadow-md hover:shadow-lg transition-all duration-300 transform hover:-translate-y-1 active:translate-y-0 px-4 py-1.5 group"
+                    onClick={() => {
+                      logout && logout();
+                      navigate('/login');
+                    }}
+                  >
+                    <span className="absolute inset-0 bg-gradient-to-r from-red-300/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl"></span>
+                    <span className="relative z-10 flex items-center gap-2">
+                      <LogOut size={16} className="group-hover:rotate-12 transition-transform duration-300" />
+                      <span>Sign Out</span>
+                    </span>
+                  </Button>
+                )}
               </div>
+
+              {/* Account Avatar - Always visible on all screen sizes */}
+              <Avatar className="h-12 w-12 cursor-pointer border-2 border-[#61e923]/30 hover:border-[#61e923] transition-all duration-300 shadow-lg hover:shadow-xl bg-white/90 relative">
+                <div className="absolute inset-0 bg-[#61e923]/20 rounded-full blur-sm opacity-50 group-hover:opacity-80 transition-opacity duration-300"></div>
+                {currentUser?.photoURL ? (
+                  <AvatarImage src={currentUser.photoURL} alt={currentUser.displayName || "User"} className="relative z-10" />
+                ) : (
+                  <AvatarImage src="/images/avatar.jpg" alt="User" className="relative z-10" />
+                )}
+                <AvatarFallback className="bg-[#61e923]/10 text-[#4db31e] relative z-10">
+                  {currentUser?.displayName ? currentUser.displayName.charAt(0).toUpperCase() : <UserIcon size={22} />}
+                </AvatarFallback>
+              </Avatar>
 
               {/* Mobile Menu Button with enhanced animation */}
               <button 
@@ -383,332 +420,406 @@ export const AboutUs = () => {
                   </div>
                 </a>
               ))}
+              
+              {/* Authentication links for mobile */}
+              <div className="mt-4 pt-4 border-t border-gray-100">
+                {!currentUser ? (
+                  <>
+                    <a 
+                      href="/login"
+                      className="flex items-center gap-3 px-4 py-4 rounded-xl transition-all duration-300 relative overflow-hidden group text-gray-700 hover:bg-[#61e923]/10 hover:text-[#4db31e]"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setMobileMenuOpen(false);
+                        navigate('/login');
+                      }}
+                    >
+                      <span className="absolute inset-0 bg-gradient-to-r from-[#61e923]/20 to-transparent opacity-0 group-hover:opacity-20 transition-opacity duration-300 blur-md"></span>
+                      <div className="relative z-10 flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-[#61e923]/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                          <LogIn size={18} />
+                        </div>
+                        <span className="font-medium">Sign In</span>
+                      </div>
+                    </a>
+                    
+                    <a 
+                      href="/signup"
+                      className="flex items-center gap-3 px-4 py-4 rounded-xl transition-all duration-300 relative overflow-hidden group text-gray-700 hover:bg-[#61e923]/10 hover:text-[#4db31e]"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setMobileMenuOpen(false);
+                        navigate('/signup');
+                      }}
+                    >
+                      <span className="absolute inset-0 bg-gradient-to-r from-[#61e923]/20 to-transparent opacity-0 group-hover:opacity-20 transition-opacity duration-300 blur-md"></span>
+                      <div className="relative z-10 flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-[#61e923]/10 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                          <UserPlus size={18} />
+                        </div>
+                        <span className="font-medium">Sign Up</span>
+                      </div>
+                    </a>
+                  </>
+                ) : (
+                  <a 
+                    href="/login"
+                    className="flex items-center gap-3 px-4 py-4 rounded-xl transition-all duration-300 relative overflow-hidden group text-red-500 hover:bg-red-50 hover:text-red-600"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      setMobileMenuOpen(false);
+                      logout && logout();
+                      navigate('/login');
+                    }}
+                  >
+                    <span className="absolute inset-0 bg-gradient-to-r from-red-100 to-transparent opacity-0 group-hover:opacity-20 transition-opacity duration-300 blur-md"></span>
+                    <div className="relative z-10 flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-red-50 flex items-center justify-center group-hover:scale-110 transition-transform duration-300">
+                        <LogOut size={18} className="text-red-500" />
+                      </div>
+                      <span className="font-medium">Sign Out</span>
+                    </div>
+                  </a>
+                )}
+                
+                {currentUser && (
+                  <div className="flex items-center gap-3 px-4 py-4 opacity-70">
+                    <span className="text-sm text-gray-500">Signed in as:</span>
+                    <span className="text-sm font-medium truncate max-w-[180px]">
+                      {currentUser.displayName || currentUser.email || "User"}
+                    </span>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Hero Section */}
-      <section id="about-section" className="relative w-full py-16 sm:py-20 md:py-24 lg:py-32 px-4 md:px-8 lg:px-16 bg-gradient-to-br from-[#e8fbde] via-white to-[#dfffd6] overflow-hidden">
-        <div className="absolute top-0 right-0 -translate-y-1/4 translate-x-1/4 w-48 h-48 sm:w-72 sm:h-72 md:w-96 md:h-96 bg-[#61e923] rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse"></div>
-        <div className="absolute bottom-0 left-0 translate-y-1/4 -translate-x-1/4 w-48 h-48 sm:w-72 sm:h-72 md:w-96 md:h-96 bg-[#4db31e] rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse" style={{animationDelay: '2s'}}></div>
-        <div className="absolute top-1/2 left-1/4 w-24 h-24 sm:w-40 sm:h-40 bg-[#dbffcc] rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" style={{animationDelay: '1s'}}></div>
-        
-        {/* Animated particles */}
-        <div className="absolute inset-0 overflow-hidden">
-          <div className="leaf leaf-1"></div>
-          <div className="leaf leaf-2"></div>
-          <div className="leaf leaf-3"></div>
-          <div className="leaf leaf-4"></div>
-        </div>
-        
-        <div className="container-custom relative z-10">
-          <div className="flex flex-col items-center justify-center gap-8 sm:gap-12 lg:gap-16 max-w-7xl mx-auto">
-            <div className="flex flex-col items-center gap-6 max-w-full sm:max-w-[90%] md:max-w-[768px] w-full">
-              <div className="flex flex-col items-center gap-4 sm:gap-6 w-full text-center">
-                <h1 className="font-heading-desktop-h1 font-bold text-dark text-3xl sm:text-4xl md:text-5xl tracking-tight leading-tight">
-                  About Smart Waste Management
-                </h1>
-                <p className="font-text-medium-normal font-normal text-gray-700 text-base sm:text-lg md:text-xl max-w-2xl mx-auto">
-                  Revolutionizing waste management through smart technology and sustainable solutions.
-                </p>
-              </div>
-            </div>
+      {/* Main Content - Add padding to account for fixed navbar */}
+      <main className="pt-28">
+        {/* Hero Section */}
+        <section id="about-section" className="relative w-full py-16 sm:py-20 md:py-24 lg:py-32 px-4 md:px-8 lg:px-16 bg-gradient-to-br from-[#e8fbde] via-white to-[#dfffd6] overflow-hidden">
+          <div className="absolute top-0 right-0 -translate-y-1/4 translate-x-1/4 w-48 h-48 sm:w-72 sm:h-72 md:w-96 md:h-96 bg-[#61e923] rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse"></div>
+          <div className="absolute bottom-0 left-0 translate-y-1/4 -translate-x-1/4 w-48 h-48 sm:w-72 sm:h-72 md:w-96 md:h-96 bg-[#4db31e] rounded-full mix-blend-multiply filter blur-3xl opacity-10 animate-pulse" style={{animationDelay: '2s'}}></div>
+          <div className="absolute top-1/2 left-1/4 w-24 h-24 sm:w-40 sm:h-40 bg-[#dbffcc] rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-pulse" style={{animationDelay: '1s'}}></div>
+          
+          {/* Animated particles */}
+          <div className="absolute inset-0 overflow-hidden">
+            <div className="leaf leaf-1"></div>
+            <div className="leaf leaf-2"></div>
+            <div className="leaf leaf-3"></div>
+            <div className="leaf leaf-4"></div>
           </div>
-        </div>
-      </section>
-
-      {/* Mission Section - Enhanced with modern design */}
-      <section className="w-full py-16 px-4 md:px-8 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-            <div className="order-2 md:order-1">
-              <div className="relative">
-                <div className="absolute -top-4 -left-4 w-24 h-24 bg-[#61e923]/20 rounded-full opacity-20"></div>
-                <div className="relative z-10 overflow-hidden rounded-2xl shadow-xl transform transition-transform duration-300 hover:scale-[1.02]">
-                  <img
-                    src="/images/mission-image.jpg"
-                    alt="Our Mission"
-                    className="w-full h-auto"
-                    onError={(e) => { e.target.src = 'https://placehold.co/600x400/61e923/ffffff?text=Our+Mission' }}
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#225c0d]/50 to-transparent"></div>
-                </div>
-              </div>
-            </div>
-
-            <div className="order-1 md:order-2">
-              <div className="bg-gradient-to-br from-[#e8fbde] to-[#dfffd6] p-8 rounded-xl shadow-md border border-[#61e923]/20">
-                <h2 className="text-2xl md:text-3xl font-bold mb-6 text-gray-800 relative">
-                  <span className="inline-block relative">
-                    Our Mission
-                    <div className="absolute -bottom-2 left-0 h-1 w-3/4 bg-[#61e923] rounded-full"></div>
-                  </span>
-                </h2>
-                <p className="text-gray-700 mb-6 leading-relaxed">
-                  At Smart Waste Management, our mission is to revolutionize waste collection and disposal
-                  through cutting-edge IoT technology, making the process more efficient and environmentally friendly.
-                </p>
-                <p className="text-gray-700 mb-6 leading-relaxed">
-                  We aim to reduce operational costs for municipalities and waste management companies
-                  while promoting sustainability and reducing the carbon footprint associated with waste collection.
-                </p>
-                <div className="flex items-center gap-4 mt-8">
-                  <div className="flex flex-col">
-                    <span className="text-3xl font-bold text-[#4db31e]">60%</span>
-                    <span className="text-gray-600 text-sm">Reduced Emissions</span>
-                  </div>
-                  <div className="w-px h-12 bg-gray-300"></div>
-                  <div className="flex flex-col">
-                    <span className="text-3xl font-bold text-[#4db31e]">40%</span>
-                    <span className="text-gray-600 text-sm">Cost Savings</span>
-                  </div>
-                  <div className="w-px h-12 bg-gray-300"></div>
-                  <div className="flex flex-col">
-                    <span className="text-3xl font-bold text-[#4db31e]">24/7</span>
-                    <span className="text-gray-600 text-sm">Monitoring</span>
-                  </div>
+          
+          <div className="container-custom relative z-10">
+            <div className="flex flex-col items-center justify-center gap-8 sm:gap-12 lg:gap-16 max-w-7xl mx-auto">
+              <div className="flex flex-col items-center gap-6 max-w-full sm:max-w-[90%] md:max-w-[768px] w-full">
+                <div className="flex flex-col items-center gap-4 sm:gap-6 w-full text-center">
+                  <h1 className="font-heading-desktop-h1 font-bold text-dark text-3xl sm:text-4xl md:text-5xl tracking-tight leading-tight">
+                    About Smart Waste Management
+                  </h1>
+                  <p className="font-text-medium-normal font-normal text-gray-700 text-base sm:text-lg md:text-xl max-w-2xl mx-auto">
+                    Revolutionizing waste management through smart technology and sustainable solutions.
+                  </p>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      {/* Values Section - Enhanced with modern design */}
-      <section className="w-full py-16 px-4 md:px-8 bg-gray-100">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-4">Our Core Values</h2>
-            <p className="text-gray-700 max-w-2xl mx-auto">The principles that guide our mission and vision for a cleaner, more sustainable future.</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {[
-              {
-                title: "Innovation",
-                description: "We continuously strive to develop and implement cutting-edge technologies to improve waste management processes.",
-                icon: "🔍",
-                color: "#61e923"
-              },
-              {
-                title: "Sustainability",
-                description: "We are committed to environmentally friendly practices that reduce carbon emissions and promote recycling and proper waste disposal.",
-                icon: "🌿",
-                color: "#61e923"
-              },
-              {
-                title: "Excellence",
-                description: "We maintain the highest standards in all aspects of our operations, from technology development to customer service.",
-                icon: "⭐",
-                color: "#61e923"
-              }
-            ].map((value, index) => (
-              <div 
-                key={index} 
-                className="bg-gradient-to-br from-[#f0ffe7] to-white rounded-xl p-6 shadow-md hover:shadow-lg transition-all duration-300 border-t-4 transform hover:-translate-y-1 border-[#61e923]/60"
-              >
-                <div className="w-12 h-12 rounded-lg flex items-center justify-center text-2xl mb-4 bg-[#61e923]/20">
-                  {value.icon}
-                </div>
-                <h3 className="text-xl font-semibold mb-3 text-gray-800">{value.title}</h3>
-                <p className="text-gray-600">{value.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Team Section - Enhanced with modern design */}
-      <section className="w-full py-16 px-4 md:px-8 bg-white">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-4">Our Team</h2>
-            <p className="text-gray-700 max-w-2xl mx-auto">Meet the experts behind Smart Waste Management, dedicated to creating innovative solutions.</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {teamMembers.map((member, index) => (
-              <div key={index} className="group">
-                <div className="relative overflow-hidden rounded-xl shadow-md bg-gradient-to-br from-[#e8fbde] to-white transform transition-all duration-300 group-hover:-translate-y-2 border border-[#61e923]/20">
-                  <div className="aspect-w-1 aspect-h-1 overflow-hidden">
-                    <div className="h-64 w-full bg-gray-100 flex items-center justify-center">
-                      <img
-                        src={member.image}
-                        alt={member.name}
-                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        onError={(e) => { e.target.src = `https://placehold.co/300x300/61e923/ffffff?text=${member.name.split(' ')[0][0]}${member.name.split(' ')[1] ? member.name.split(' ')[1][0] : ''}` }}
-                      />
-                    </div>
-                  </div>
-                  <div className="p-6">
-                    <h3 className="text-xl font-bold text-gray-800 mb-1">{member.name}</h3>
-                    <p className="text-[#4db31e] font-medium mb-4">{member.role}</p>
-                    <p className="text-gray-600">{member.bio}</p>
-                    <div className="flex mt-6 gap-3">
-                      {['LinkedIn', 'Twitter', 'Email'].map((platform, i) => (
-                        <div key={i} className="w-8 h-8 rounded-full bg-[#61e923]/20 flex items-center justify-center cursor-pointer hover:bg-[#61e923]/30 transition-colors duration-300">
-                          <span className="text-xs text-gray-700">{platform[0]}</span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Statistics Section - Enhanced with modern design */}
-      <section className="w-full py-16 px-4 md:px-8 bg-gray-100">
-        <div className="max-w-7xl mx-auto">
-          <div className="text-center mb-12">
-            <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-4">Our Impact</h2>
-            <p className="text-gray-700 max-w-2xl mx-auto">How our smart waste management solutions are making a difference around the world.</p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {[
-              { number: "200+", label: "Cities Served", color: "#61e923" },
-              { number: "500K+", label: "Smart Bins Deployed", color: "#61e923" },
-              { number: "30%", label: "Average Waste Reduction", color: "#61e923" },
-              { number: "1M+", label: "Tons of CO2 Saved", color: "#61e923" }
-            ].map((stat, index) => (
-              <div key={index} className="bg-gradient-to-br from-[#f0ffe7] to-white rounded-xl p-6 shadow-md text-center transform transition-all duration-300 hover:scale-105 border border-[#61e923]/20">
-                <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 bg-[#61e923]/20">
-                  <span className="text-2xl text-gray-700">
-                    {index === 0 ? "🏙️" : index === 1 ? "🗑️" : index === 2 ? "📉" : "🌍"}
-                  </span>
-                </div>
-                <h3 className="text-3xl md:text-4xl font-bold mb-2 text-[#4db31e]">{stat.number}</h3>
-                <p className="text-gray-600">{stat.label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA Section - Enhanced with modern design */}
-      <section className="w-full py-16 px-4 md:px-8 bg-white">
-        <div className="max-w-5xl mx-auto">
-          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#4db31e] to-[#225c0d] p-8 md:p-12 shadow-xl border border-[#61e923]/20">
-            <div className="absolute -inset-[100px] bg-gradient-to-r from-white/20 via-[#61e923]/10 to-white/20 opacity-50 transition-opacity duration-700 blur-3xl"></div>
-            
-            <div className="relative z-10 text-center">
-              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-6">Ready to Transform Your Waste Management?</h2>
-              <p className="text-white/90 mb-8 max-w-2xl mx-auto">
-                Join hundreds of cities and companies that have already upgraded to smart waste management. Start reducing costs and environmental impact today.
-              </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                <Button 
-                  className="relative overflow-hidden bg-white hover:bg-gray-100 text-[#4db31e] font-medium rounded-xl px-6 py-6 h-auto transition-all duration-300 shadow-lg hover:shadow-2xl transform hover:-translate-y-1 active:translate-y-0 group"
-                  onClick={() => navigate('/contact')}
-                >
-                  <span className="absolute inset-0 bg-gradient-to-r from-[#61e923]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl"></span>
-                  <span className="relative z-10">Schedule a Demo</span>
-                </Button>
-                <Button 
-                  variant="outline" 
-                  className="relative overflow-hidden bg-transparent border-2 border-white/80 hover:border-white text-white hover:bg-white/10 px-8 py-6 text-lg font-medium rounded-xl transform hover:-translate-y-1 active:translate-y-0 transition-all duration-300 group"
-                  onClick={() => navigate('/signup')}
-                >
-                  <span className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl"></span>
-                  <span className="relative z-10">Get Started</span>
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Footer - Matching Home page footer */}
-      <footer className="w-full bg-[#225c0d] text-white py-12 px-4 md:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div>
-              <div className="flex items-center gap-3 mb-6">
+        {/* Mission Section - Enhanced with modern design */}
+        <section className="w-full py-16 px-4 md:px-8 bg-white">
+          <div className="max-w-7xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
+              <div className="order-2 md:order-1">
                 <div className="relative">
-                  <div className="absolute inset-0 bg-[#61e923] blur-md opacity-50 rounded-full"></div>
-                  <img
-                    className="w-10 h-10 object-cover relative z-10"
-                    alt="Logo"
-                    src="/images/image-5.png"
-                    onError={(e) => { e.target.src = 'https://placehold.co/80x80/e8fbde/61e923?text=SW' }}
-                  />
-                </div>
-                <div>
-                  <h1 className="font-bold text-xl text-white">SmartWaste</h1>
-                  <p className="text-xs text-green-100/80">Intelligent Management</p>
+                  <div className="absolute -top-4 -left-4 w-24 h-24 bg-[#61e923]/20 rounded-full opacity-20"></div>
+                  <div className="relative z-10 overflow-hidden rounded-2xl shadow-xl transform transition-transform duration-300 hover:scale-[1.02]">
+                    <img
+                      src="/images/mission-image.jpg"
+                      alt="Our Mission"
+                      className="w-full h-auto"
+                      onError={(e) => { e.target.src = 'https://placehold.co/600x400/61e923/ffffff?text=Our+Mission' }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#225c0d]/50 to-transparent"></div>
+                  </div>
                 </div>
               </div>
-              <p className="text-green-100/80 mb-6">
-                Transforming waste management with IoT technology and data-driven solutions.
-              </p>
-              <div className="flex gap-4">
-                {['Twitter', 'Facebook', 'LinkedIn', 'Instagram'].map((platform, i) => (
-                  <a key={i} href="#" className="w-10 h-10 rounded-full bg-[#2d7b0f] flex items-center justify-center hover:bg-[#61e923] transition-colors duration-300">
-                    <span className="text-xs">{platform[0]}</span>
-                  </a>
-                ))}
+
+              <div className="order-1 md:order-2">
+                <div className="bg-gradient-to-br from-[#e8fbde] to-[#dfffd6] p-8 rounded-xl shadow-md border border-[#61e923]/20">
+                  <h2 className="text-2xl md:text-3xl font-bold mb-6 text-gray-800 relative">
+                    <span className="inline-block relative">
+                      Our Mission
+                      <div className="absolute -bottom-2 left-0 h-1 w-3/4 bg-[#61e923] rounded-full"></div>
+                    </span>
+                  </h2>
+                  <p className="text-gray-700 mb-6 leading-relaxed">
+                    At Smart Waste Management, our mission is to revolutionize waste collection and disposal
+                    through cutting-edge IoT technology, making the process more efficient and environmentally friendly.
+                  </p>
+                  <p className="text-gray-700 mb-6 leading-relaxed">
+                    We aim to reduce operational costs for municipalities and waste management companies
+                    while promoting sustainability and reducing the carbon footprint associated with waste collection.
+                  </p>
+                  <div className="flex items-center gap-4 mt-8">
+                    <div className="flex flex-col">
+                      <span className="text-3xl font-bold text-[#4db31e]">60%</span>
+                      <span className="text-gray-600 text-sm">Reduced Emissions</span>
+                    </div>
+                    <div className="w-px h-12 bg-gray-300"></div>
+                    <div className="flex flex-col">
+                      <span className="text-3xl font-bold text-[#4db31e]">40%</span>
+                      <span className="text-gray-600 text-sm">Cost Savings</span>
+                    </div>
+                    <div className="w-px h-12 bg-gray-300"></div>
+                    <div className="flex flex-col">
+                      <span className="text-3xl font-bold text-[#4db31e]">24/7</span>
+                      <span className="text-gray-600 text-sm">Monitoring</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Values Section - Enhanced with modern design */}
+        <section className="w-full py-16 px-4 md:px-8 bg-gray-100">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-12">
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-4">Our Core Values</h2>
+              <p className="text-gray-700 max-w-2xl mx-auto">The principles that guide our mission and vision for a cleaner, more sustainable future.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              {[
+                {
+                  title: "Innovation",
+                  description: "We continuously strive to develop and implement cutting-edge technologies to improve waste management processes.",
+                  icon: "🔍",
+                  color: "#61e923"
+                },
+                {
+                  title: "Sustainability",
+                  description: "We are committed to environmentally friendly practices that reduce carbon emissions and promote recycling and proper waste disposal.",
+                  icon: "🌿",
+                  color: "#61e923"
+                },
+                {
+                  title: "Excellence",
+                  description: "We maintain the highest standards in all aspects of our operations, from technology development to customer service.",
+                  icon: "⭐",
+                  color: "#61e923"
+                }
+              ].map((value, index) => (
+                <div 
+                  key={index} 
+                  className="bg-gradient-to-br from-[#f0ffe7] to-white rounded-xl p-6 shadow-md hover:shadow-lg transition-all duration-300 border-t-4 transform hover:-translate-y-1 border-[#61e923]/60"
+                >
+                  <div className="w-12 h-12 rounded-lg flex items-center justify-center text-2xl mb-4 bg-[#61e923]/20">
+                    {value.icon}
+                  </div>
+                  <h3 className="text-xl font-semibold mb-3 text-gray-800">{value.title}</h3>
+                  <p className="text-gray-600">{value.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Team Section - Enhanced with modern design */}
+        <section className="w-full py-16 px-4 md:px-8 bg-white">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-12">
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-4">Our Team</h2>
+              <p className="text-gray-700 max-w-2xl mx-auto">Meet the experts behind Smart Waste Management, dedicated to creating innovative solutions.</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+              {teamMembers.map((member, index) => (
+                <div key={index} className="group">
+                  <div className="relative overflow-hidden rounded-xl shadow-md bg-gradient-to-br from-[#e8fbde] to-white transform transition-all duration-300 group-hover:-translate-y-2 border border-[#61e923]/20">
+                    <div className="aspect-w-1 aspect-h-1 overflow-hidden">
+                      <div className="h-64 w-full bg-gray-100 flex items-center justify-center">
+                        <img
+                          src={member.image}
+                          alt={member.name}
+                          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          onError={(e) => { e.target.src = `https://placehold.co/300x300/61e923/ffffff?text=${member.name.split(' ')[0][0]}${member.name.split(' ')[1] ? member.name.split(' ')[1][0] : ''}` }}
+                        />
+                      </div>
+                    </div>
+                    <div className="p-6">
+                      <h3 className="text-xl font-bold text-gray-800 mb-1">{member.name}</h3>
+                      <p className="text-[#4db31e] font-medium mb-4">{member.role}</p>
+                      <p className="text-gray-600">{member.bio}</p>
+                      <div className="flex mt-6 gap-3">
+                        {['LinkedIn', 'Twitter', 'Email'].map((platform, i) => (
+                          <div key={i} className="w-8 h-8 rounded-full bg-[#61e923]/20 flex items-center justify-center cursor-pointer hover:bg-[#61e923]/30 transition-colors duration-300">
+                            <span className="text-xs text-gray-700">{platform[0]}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* Statistics Section - Enhanced with modern design */}
+        <section className="w-full py-16 px-4 md:px-8 bg-gray-100">
+          <div className="max-w-7xl mx-auto">
+            <div className="text-center mb-12">
+              <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-gray-900 mb-4">Our Impact</h2>
+              <p className="text-gray-700 max-w-2xl mx-auto">How our smart waste management solutions are making a difference around the world.</p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[
+                { number: "200+", label: "Cities Served", color: "#61e923" },
+                { number: "500K+", label: "Smart Bins Deployed", color: "#61e923" },
+                { number: "30%", label: "Average Waste Reduction", color: "#61e923" },
+                { number: "1M+", label: "Tons of CO2 Saved", color: "#61e923" }
+              ].map((stat, index) => (
+                <div key={index} className="bg-gradient-to-br from-[#f0ffe7] to-white rounded-xl p-6 shadow-md text-center transform transition-all duration-300 hover:scale-105 border border-[#61e923]/20">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4 bg-[#61e923]/20">
+                    <span className="text-2xl text-gray-700">
+                      {index === 0 ? "🏙️" : index === 1 ? "🗑️" : index === 2 ? "📉" : "🌍"}
+                    </span>
+                  </div>
+                  <h3 className="text-3xl md:text-4xl font-bold mb-2 text-[#4db31e]">{stat.number}</h3>
+                  <p className="text-gray-600">{stat.label}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* CTA Section - Enhanced with modern design */}
+        <section className="w-full py-16 px-4 md:px-8 bg-white">
+          <div className="max-w-5xl mx-auto">
+            <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#4db31e] to-[#225c0d] p-8 md:p-12 shadow-xl border border-[#61e923]/20">
+              <div className="absolute -inset-[100px] bg-gradient-to-r from-white/20 via-[#61e923]/10 to-white/20 opacity-50 transition-opacity duration-700 blur-3xl"></div>
+              
+              <div className="relative z-10 text-center">
+                <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold text-white mb-6">Ready to Transform Your Waste Management?</h2>
+                <p className="text-white/90 mb-8 max-w-2xl mx-auto">
+                  Join hundreds of cities and companies that have already upgraded to smart waste management. Start reducing costs and environmental impact today.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                  <Button 
+                    className="relative overflow-hidden bg-white hover:bg-gray-100 text-[#4db31e] font-medium rounded-xl px-6 py-6 h-auto transition-all duration-300 shadow-lg hover:shadow-2xl transform hover:-translate-y-1 active:translate-y-0 group"
+                    onClick={() => navigate('/contact')}
+                  >
+                    <span className="absolute inset-0 bg-gradient-to-r from-[#61e923]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl"></span>
+                    <span className="relative z-10">Schedule a Demo</span>
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="relative overflow-hidden bg-transparent border-2 border-white/80 hover:border-white text-white hover:bg-white/10 px-8 py-6 text-lg font-medium rounded-xl transform hover:-translate-y-1 active:translate-y-0 transition-all duration-300 group"
+                    onClick={() => navigate('/signup')}
+                  >
+                    <span className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 blur-xl"></span>
+                    <span className="relative z-10">Get Started</span>
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Footer - Matching Home page footer */}
+        <footer className="w-full bg-[#225c0d] text-white py-12 px-4 md:px-8">
+          <div className="max-w-7xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+              <div>
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="relative">
+                    <div className="absolute inset-0 bg-[#61e923] blur-md opacity-50 rounded-full"></div>
+                    <img
+                      className="w-10 h-10 object-cover relative z-10"
+                      alt="Logo"
+                      src="/images/image-5.png"
+                      onError={(e) => { e.target.src = 'https://placehold.co/80x80/e8fbde/61e923?text=SW' }}
+                    />
+                  </div>
+                  <div>
+                    <h1 className="font-bold text-xl text-white">SmartWaste</h1>
+                    <p className="text-xs text-green-100/80">Intelligent Management</p>
+                  </div>
+                </div>
+                <p className="text-green-100/80 mb-6">
+                  Transforming waste management with IoT technology and data-driven solutions.
+                </p>
+                <div className="flex gap-4">
+                  {['Twitter', 'Facebook', 'LinkedIn', 'Instagram'].map((platform, i) => (
+                    <a key={i} href="#" className="w-10 h-10 rounded-full bg-[#2d7b0f] flex items-center justify-center hover:bg-[#61e923] transition-colors duration-300">
+                      <span className="text-xs">{platform[0]}</span>
+                    </a>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <h3 className="font-bold text-lg mb-6">Quick Links</h3>
+                <ul className="space-y-4">
+                  {['Home', 'About Us', 'Dashboard', 'Contact Us', 'Blog', 'Careers'].map((link, i) => (
+                    <li key={i}>
+                      <a href="#" className="text-green-100/80 hover:text-white transition-colors duration-300">
+                        {link}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div>
+                <h3 className="font-bold text-lg mb-6">Solutions</h3>
+                <ul className="space-y-4">
+                  {['Smart Bins', 'Route Optimization', 'Analytics Platform', 'Mobile App', 'API Integration', 'Custom Solutions'].map((link, i) => (
+                    <li key={i}>
+                      <a href="#" className="text-green-100/80 hover:text-white transition-colors duration-300">
+                        {link}
+                      </a>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div>
+                <h3 className="font-bold text-lg mb-6">Contact Us</h3>
+                <ul className="space-y-4 text-green-100/80">
+                  <li className="flex gap-3 items-start">
+                    <span>📍</span>
+                    <span>1234 Innovation Drive, Tech City, TC 98765</span>
+                  </li>
+                  <li className="flex gap-3 items-start">
+                    <span>📱</span>
+                    <span>+1 (555) 123-4567</span>
+                  </li>
+                  <li className="flex gap-3 items-start">
+                    <span>✉️</span>
+                    <span>info@smartwaste.example.com</span>
+                  </li>
+                </ul>
               </div>
             </div>
 
-            <div>
-              <h3 className="font-bold text-lg mb-6">Quick Links</h3>
-              <ul className="space-y-4">
-                {['Home', 'About Us', 'Dashboard', 'Contact Us', 'Blog', 'Careers'].map((link, i) => (
-                  <li key={i}>
-                    <a href="#" className="text-green-100/80 hover:text-white transition-colors duration-300">
-                      {link}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="font-bold text-lg mb-6">Solutions</h3>
-              <ul className="space-y-4">
-                {['Smart Bins', 'Route Optimization', 'Analytics Platform', 'Mobile App', 'API Integration', 'Custom Solutions'].map((link, i) => (
-                  <li key={i}>
-                    <a href="#" className="text-green-100/80 hover:text-white transition-colors duration-300">
-                      {link}
-                    </a>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="font-bold text-lg mb-6">Contact Us</h3>
-              <ul className="space-y-4 text-green-100/80">
-                <li className="flex gap-3 items-start">
-                  <span>📍</span>
-                  <span>1234 Innovation Drive, Tech City, TC 98765</span>
-                </li>
-                <li className="flex gap-3 items-start">
-                  <span>📱</span>
-                  <span>+1 (555) 123-4567</span>
-                </li>
-                <li className="flex gap-3 items-start">
-                  <span>✉️</span>
-                  <span>info@smartwaste.example.com</span>
-                </li>
-              </ul>
+            <div className="border-t border-[#2d7b0f] mt-12 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
+              <p className="text-green-100/60">© 2023 Smart Waste Management. All rights reserved.</p>
+              <div className="flex gap-6">
+                <a href="#" className="text-green-100/60 hover:text-white transition-colors duration-300">Privacy Policy</a>
+                <a href="#" className="text-green-100/60 hover:text-white transition-colors duration-300">Terms of Service</a>
+                <a href="#" className="text-green-100/60 hover:text-white transition-colors duration-300">Cookie Policy</a>
+              </div>
             </div>
           </div>
-
-          <div className="border-t border-[#2d7b0f] mt-12 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
-            <p className="text-green-100/60">© 2023 Smart Waste Management. All rights reserved.</p>
-            <div className="flex gap-6">
-              <a href="#" className="text-green-100/60 hover:text-white transition-colors duration-300">Privacy Policy</a>
-              <a href="#" className="text-green-100/60 hover:text-white transition-colors duration-300">Terms of Service</a>
-              <a href="#" className="text-green-100/60 hover:text-white transition-colors duration-300">Cookie Policy</a>
-            </div>
-          </div>
-        </div>
-      </footer>
+        </footer>
+      </main>
     </div>
   );
 }; 
