@@ -66,8 +66,8 @@ export const CallToActionSection = () => {
             <div className="flex items-center gap-2 px-4 py-2 bg-white/10 backdrop-blur-md rounded-full text-white font-medium text-sm mb-8 w-max animate-fade-in border border-white/20">
               <span className="w-2 h-2 bg-[#61e923] rounded-full animate-pulse"></span>
               <span className="text-[#dbffcc]">REVOLUTIONIZE YOUR WASTE MANAGEMENT</span>
-            </div>
-            
+        </div>
+
             <h2 className="text-4xl sm:text-5xl md:text-6xl font-bold leading-tight mb-6 animate-fade-in-delay">
               <span className="relative inline-block text-[#e8fbde]">
                 Smart
@@ -116,7 +116,7 @@ export const CallToActionSection = () => {
             
             {/* Primary CTA buttons */}
             <div className="flex flex-col sm:flex-row gap-4 mb-12">
-              <Button
+            <Button
                 className="relative overflow-hidden bg-[#61e923] hover:bg-[#4db31e] text-gray-900 font-semibold rounded-xl px-8 py-6 h-auto transition-all duration-300 shadow-lg hover:shadow-2xl text-base flex items-center gap-3 group hover:-translate-y-1 active:translate-y-0"
                 onClick={() => navigate('/signup')}
               >
@@ -127,10 +127,10 @@ export const CallToActionSection = () => {
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform duration-300" />
                   </div>
                 </span>
-              </Button>
-              
-              <Button
-                variant="outline"
+            </Button>
+
+            <Button
+              variant="outline"
                 className="relative overflow-hidden border-2 border-[#61e923]/60 hover:border-[#61e923] bg-white/5 backdrop-blur-md text-white hover:bg-white/10 rounded-xl px-8 py-6 h-auto transition-all duration-300 shadow-md hover:shadow-xl text-base flex items-center gap-3 group hover:-translate-y-1 active:translate-y-0"
                 onClick={() => navigate('/contact')}
               >
@@ -198,7 +198,7 @@ export const CallToActionSection = () => {
                       <span className="absolute inset-0 bg-white/20 opacity-0 hover:opacity-100 transition-opacity duration-300 blur-xl"></span>
                       <span className="absolute -inset-1 bg-gradient-to-r from-[#61e923]/0 via-white/20 to-[#61e923]/0 opacity-0 group-hover:opacity-100 transition-all duration-1000 blur-xl animate-shine"></span>
                       <span className="relative z-10">Start Your Free Trial</span>
-                    </Button>
+            </Button>
                     
                     <div className="flex items-center justify-center gap-2 text-[#dbffcc]/70 text-sm">
                       <div className="w-5 h-5 rounded-full bg-[#61e923]/20 flex items-center justify-center">

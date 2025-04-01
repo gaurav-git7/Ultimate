@@ -64,6 +64,11 @@ import {
   AvatarImage,
 } from "../../../../../../components/ui/avatar.jsx";
 
+// Define API base URL
+const API_BASE_URL = "http://localhost:5000/api";
+// Direct ESP endpoint (without /api path)
+const ESP_API_URL = "http://localhost:5000";
+
 // Add CSS animations for the leaf elements
 const leafAnimationStyles = `
   @keyframes float {
@@ -357,75 +362,172 @@ export const Dashboard = () => {
     }
   }, [binData, previousFillLevel, navigate]);
 
-  // Use our API service to fetch real bin data
-  const fetchBinData = async (id) => {
-    setLoading(true);
-    setError(null);
-    
-    try {
-      // Use mock data in development mode
-      if (import.meta.env.DEV) {
-        console.log("Using mock data for development");
-        const mockData = generateMockData(id);
-        setBinData(mockData);
-        setBinHistory(prev => {
-          const newHistory = [mockData, ...prev];
-          return newHistory.slice(0, 10);
-        });
-        return mockData;
-      }
+  // Function to fetch bin data - moved outside useEffect
+  const fetchBinData = async () => {
+    if (!binId) return;
 
-      // Try to fetch real data
-      const data = await api.binData.getBinData(id);
-      setBinData(data);
+    try {
+      setLoading(true);
+      setError(null);
       
-      // Get history data as well
+      // Try the direct ESP endpoint first
       try {
-        const history = await api.binData.getBinHistory(id, 10);
-        console.log("Fetched history data:", history);
-        setBinHistory(history || []);
-      } catch (historyErr) {
-        console.error("Error fetching bin history:", historyErr);
-        // Use mock history data in case of error
-        const mockHistory = Array(10).fill(null).map(() => generateMockData(id));
-        setBinHistory(mockHistory);
-      }
-      
-      return data;
-    } catch (err) {
-      console.error("Error fetching bin data:", err);
-      
-      // Use mock data as fallback
-      console.log("Using fallback mock data");
-        const mockData = generateMockData(id);
-        setBinData(mockData);
-        setBinHistory(prev => {
-          const newHistory = [mockData, ...prev];
-          return newHistory.slice(0, 10);
+        console.log("Trying direct ESP endpoint");
+        const response = await fetch(`${ESP_API_URL}/bins/${binId}`);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`ESP endpoint error: ${response.status} ${response.statusText}`, errorText);
+          throw new Error(`${response.status} ${response.statusText}: ${errorText}`);
+        }
+        
+        const data = await response.json();
+        console.log("ESP endpoint data:", data);
+        setBinData(data);
+        return;
+      } catch (directError) {
+        console.error("Error with direct endpoint:", directError);
+        
+        // Fall back to API endpoint
+        console.log("Trying API endpoint");
+        const response = await fetch(`${API_BASE_URL}/bin-data/${binId}`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          }
         });
-      
-      return mockData;
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`API endpoint error: ${response.status} ${response.statusText}`, errorText);
+          throw new Error(`${response.status} ${response.statusText}: ${errorText}`);
+        }
+        
+        const data = await response.json();
+        console.log("API endpoint data:", data);
+        setBinData(data);
+      }
+    } catch (error) {
+      console.error('Error fetching bin data:', error);
+      setError(`Failed to connect to bin: ${error.message}`);
+      setBinData(null);
     } finally {
       setLoading(false);
     }
   };
-  
-  // Helper function to generate mock data for development
-  const generateMockData = (id) => {
-    const fillPercentage = Math.floor(Math.random() * 100);
-    const status = fillPercentage >= 80 ? "critical" : 
-                  fillPercentage >= 50 ? "warning" : "normal";
-                  
-    return {
-      binId: id,
-      location: binLocation || "Default Location",
-      distance: Math.floor(Math.random() * 40) + 5, // 5 to 45cm
-      fillPercentage,
-      batteryLevel: Math.floor(Math.random() * 30) + 70, // 70 to 100%
-      timestamp: new Date().toISOString(),
-      status
-    };
+
+  // Function to fetch history data - moved outside useEffect
+  const fetchHistoryData = async () => {
+    if (!binId) return;
+
+    try {
+      // Try the direct ESP endpoint first
+      try {
+        console.log("Trying direct ESP history endpoint");
+        const response = await fetch(`${ESP_API_URL}/bins/${binId}/history`);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`ESP history endpoint error: ${response.status} ${response.statusText}`, errorText);
+          throw new Error(`${response.status} ${response.statusText}: ${errorText}`);
+        }
+        
+        const data = await response.json();
+        console.log("ESP history endpoint data:", data);
+        setBinHistory(data);
+        return;
+      } catch (directError) {
+        console.error("Error with direct history endpoint:", directError);
+        
+        // Fall back to API endpoint
+        console.log("Trying API history endpoint");
+        const response = await fetch(`${API_BASE_URL}/bin-data/${binId}/history`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+          }
+        });
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`API history endpoint error: ${response.status} ${response.statusText}`, errorText);
+          throw new Error(`${response.status} ${response.statusText}: ${errorText}`);
+        }
+        
+        const data = await response.json();
+        console.log("API history endpoint data:", data);
+        setBinHistory(data);
+      }
+    } catch (error) {
+      console.error('Error fetching history data:', error);
+      // Don't show history errors to user, just set empty array
+      setBinHistory([]);
+    }
   };
+
+  // Use the fetchBinData function in useEffect
+  useEffect(() => {
+    fetchBinData();
+  }, [binId]);
+
+  // Use the fetchHistoryData function in useEffect
+  useEffect(() => {
+    fetchHistoryData();
+  }, [binId]);
+
+  // Handle bin overflow notification
+  const handleBinOverflowNotification = async () => {
+    if (!binData) return;
+
+    try {
+      // Send push notification via FCM
+      const notificationPayload = {
+        title: "Bin Overflow Alert",
+        body: `Bin ${binData.binId} at ${binData.location} is ${binData.fillPercentage}% full!`,
+        data: {
+          binId: binData.binId,
+          location: binData.location,
+          type: "overflow",
+          timestamp: new Date().toISOString()
+        }
+      };
+
+      // If user is logged in, send email notification
+      if (currentUser) {
+        try {
+          const response = await fetch(`${API_BASE_URL}/notifications/email`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              to: currentUser.email,
+              subject: "Bin Overflow Alert",
+              text: `Bin ${binData.binId} at ${binData.location} is ${binData.fillPercentage}% full!`,
+              binId: binData.binId,
+              location: binData.location,
+              fillPercentage: binData.fillPercentage
+            }),
+          });
+
+          if (!response.ok) {
+            throw new Error('Failed to send email notification');
+          }
+        } catch (error) {
+          console.error('Error sending email notification:', error);
+        }
+      }
+    } catch (error) {
+      console.error('Error sending notification:', error);
+    }
+  };
+
+  // Monitor bin fill level and send notifications
+  useEffect(() => {
+    if (!binData) return;
+
+    if (binData.fillPercentage > 80) {
+      handleBinOverflowNotification();
+    }
+  }, [binData]);
 
   // Function to handle notification toggle
   const handleToggleNotifications = async () => {
@@ -485,11 +587,98 @@ export const Dashboard = () => {
     setIsConnecting(true);
     try {
       // First check if the bin exists by getting its data
-      const data = await api.binData.getBinData(binIdToConnect);
+      let data;
+      let errorMessages = [];
+      
+      // Try direct ESP8266 endpoint first
+      try {
+        console.log(`Trying direct ESP endpoint for bin ${binIdToConnect}`);
+        const response = await fetch(`${ESP_API_URL}/bins/${binIdToConnect}`);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`ESP endpoint error: ${response.status} ${response.statusText}`, errorText);
+          errorMessages.push(`ESP endpoint: ${response.status} ${response.statusText}`);
+          throw new Error(`ESP endpoint failed: ${response.status}`);
+        }
+        
+        data = await response.json();
+        console.log("Successfully connected via ESP endpoint:", data);
+      } catch (espError) {
+        console.error("ESP endpoint connection failed:", espError);
+        
+        // Fall back to API endpoint
+        try {
+          console.log(`Trying API endpoint for bin ${binIdToConnect}`);
+          const response = await fetch(`${API_BASE_URL}/bin-data/${binIdToConnect}`, {
+            headers: {
+              'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+            }
+          });
+          
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`API endpoint error: ${response.status} ${response.statusText}`, errorText);
+            errorMessages.push(`API endpoint: ${response.status} ${response.statusText}`);
+            throw new Error(`API endpoint failed: ${response.status}`);
+          }
+          
+          data = await response.json();
+          console.log("Successfully connected via API endpoint:", data);
+        } catch (apiError) {
+          console.error("API endpoint connection failed:", apiError);
+          errorMessages.push(`API attempt: ${apiError.message}`);
+          throw new Error("Both connection attempts failed");
+        }
+      }
       
       // If we made it here, we have a successful connection
       if (data) {
+        // Set bin data
+        setBinData(data);
         setConnected(true);
+        
+        // Fetch history data
+        try {
+          let historyData;
+          try {
+            console.log(`Fetching history for bin ${binIdToConnect} from ESP endpoint`);
+            const historyResponse = await fetch(`${ESP_API_URL}/bins/${binIdToConnect}/history`);
+            
+            if (!historyResponse.ok) {
+              const errorText = await historyResponse.text();
+              console.error(`ESP history endpoint error: ${historyResponse.status}`, errorText);
+              throw new Error(`ESP history endpoint failed: ${historyResponse.status}`);
+            }
+            
+            historyData = await historyResponse.json();
+            console.log("Successfully fetched history via ESP endpoint:", historyData);
+          } catch (espHistoryError) {
+            console.error("ESP history endpoint failed:", espHistoryError);
+            
+            // Try API endpoint
+            console.log(`Fetching history for bin ${binIdToConnect} from API endpoint`);
+            const historyResponse = await fetch(`${API_BASE_URL}/bin-data/${binIdToConnect}/history`, {
+              headers: {
+                'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+              }
+            });
+            
+            if (!historyResponse.ok) {
+              const errorText = await historyResponse.text();
+              console.error(`API history endpoint error: ${historyResponse.status}`, errorText);
+              throw new Error(`API history endpoint failed: ${historyResponse.status}`);
+            }
+            
+            historyData = await historyResponse.json();
+            console.log("Successfully fetched history via API endpoint:", historyData);
+          }
+          setBinHistory(historyData || []);
+        } catch (historyErr) {
+          console.error("All history fetch attempts failed:", historyErr);
+          setBinHistory([]);
+          // Non-critical error, don't prevent dashboard from showing
+        }
         
         // If no location was provided, use the one from the bin data
         if (!locationToConnect && data.location) {
@@ -501,6 +690,7 @@ export const Dashboard = () => {
         if (locationToConnect && locationToConnect !== data.location) {
           try {
             // Try to update the bin location
+            console.log(`Updating bin location to: ${locationToConnect}`);
             await api.bins.updateBin(binIdToConnect, { location: locationToConnect });
           } catch (updateErr) {
             console.error("Error updating bin location:", updateErr);
@@ -511,8 +701,8 @@ export const Dashboard = () => {
         // Save the bin ID and location to local storage for this user
         if (userId) {
           try {
-          localStorage.setItem(`smartbin_${userId}_binId`, binIdToConnect);
-          localStorage.setItem(`smartbin_${userId}_location`, locationToConnect || "");
+            localStorage.setItem(`smartbin_${userId}_binId`, binIdToConnect);
+            localStorage.setItem(`smartbin_${userId}_location`, locationToConnect || "");
           } catch (err) {
             console.error("Error saving to localStorage:", err);
           }
@@ -520,31 +710,37 @@ export const Dashboard = () => {
         
         // Set previous fill level for overflow detection
         setPreviousFillLevel(data.fillPercentage || 0);
+        
+        // Clear any previous error
+        setError(null);
       }
     } catch (err) {
       console.error("Error connecting to bin:", err);
-      setError(`Failed to connect to bin ${binIdToConnect}. Please check ID and try again.`);
       
-      if (import.meta.env.DEV) {
-        // In development, allow connection with mock data
-        console.log("Using mock data for development");
-        const mockData = generateMockData(binIdToConnect);
-        setBinData(mockData);
-        setBinHistory([mockData]);
-        setConnected(true);
-        
-        // Save the bin ID to local storage for this user even in dev mode
-        if (userId) {
-          try {
-          localStorage.setItem(`smartbin_${userId}_binId`, binIdToConnect);
-          localStorage.setItem(`smartbin_${userId}_location`, locationToConnect || "");
-          } catch (err) {
-            console.error("Error saving to localStorage:", err);
-          }
+      // Handle specific error cases with better debugging info
+      if (err.message.includes("Not found") || err.message.includes("404")) {
+        setError(`Bin ${binIdToConnect} not found. Please check the ID and try again.`);
+      } else if (err.message.includes("network")) {
+        setError("Network error. Please check your internet connection and try again.");
+      } else if (err.message.includes("Unauthorized") || err.message.includes("401")) {
+        setError("Authentication error. Please log in again to access this bin.");
+      } else {
+        setError(`Failed to connect to bin ${binIdToConnect}. Error: ${err.message}`);
+      }
+      
+      // Reset connection state
+      setConnected(false);
+      setBinData(null);
+      setBinHistory([]);
+      
+      // Remove saved bin ID from local storage on error
+      if (userId) {
+        try {
+          localStorage.removeItem(`smartbin_${userId}_binId`);
+          localStorage.removeItem(`smartbin_${userId}_location`);
+        } catch (err) {
+          console.error("Error removing from localStorage:", err);
         }
-        
-        // Set previous fill level for overflow detection
-        setPreviousFillLevel(mockData.fillPercentage || 0);
       }
     } finally {
       setIsConnecting(false);
@@ -568,11 +764,13 @@ export const Dashboard = () => {
     }
   };
 
-  // Function to handle refresh
+  // Now handleRefresh can access fetchBinData and fetchHistoryData
   const handleRefresh = () => {
-    if (connected && binId) {
-      fetchBinData(binId);
-    }
+    if (!connected) return;
+    
+    // These functions are now accessible at component level
+    fetchBinData();
+    fetchHistoryData();
   };
 
   // Set up interval for automatic data refresh when connected

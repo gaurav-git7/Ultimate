@@ -4,6 +4,13 @@ const { admin, collections } = require('../config/firebase');
 
 // Middleware to verify Firebase token
 const authenticateUser = async (req, res, next) => {
+  // Skip authentication if the skipAuth flag is set
+  // This is only used for ESP8266 requests that need to bypass authentication
+  if (req.skipAuth) {
+    console.log('Skipping authentication for ESP8266 request');
+    return next();
+  }
+
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {

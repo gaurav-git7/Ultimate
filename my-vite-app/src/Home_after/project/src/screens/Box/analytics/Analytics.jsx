@@ -32,15 +32,18 @@ export const Analytics = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        // In a real implementation, you would call actual API endpoints
-        // const fillLevelTrends = await api.analytics.getFillLevelTrends(dateRange);
-        // const collectionStats = await api.analytics.getCollectionStats(dateRange);
-        // const efficiencyMetrics = await api.analytics.getEfficiencyMetrics(dateRange);
-        // const binComparison = await api.analytics.getBinComparison(dateRange);
+        // Fetch real data from API endpoints
+        const fillLevelTrends = await api.analytics.getFillLevelTrends(dateRange);
+        const collectionStats = await api.analytics.getCollectionStats(dateRange);
+        const efficiencyMetrics = await api.analytics.getEfficiencyMetrics(dateRange);
+        const binComparison = await api.analytics.getBinComparison(dateRange);
         
-        // For now, use mock data
-        const mockData = generateMockData(dateRange);
-        setData(mockData);
+        setData({
+          fillLevelTrends,
+          collectionStats,
+          efficiencyMetrics,
+          binComparison
+        });
       } catch (err) {
         console.error('Failed to fetch analytics data:', err);
         setError('Could not load analytics data. Please try again later.');
@@ -51,69 +54,6 @@ export const Analytics = () => {
     
     fetchData();
   }, [dateRange]);
-  
-  // Generate mock data for development/demo
-  const generateMockData = (range) => {
-    // Generate different data based on selected date range
-    const daysToGenerate = range === 'week' ? 7 : range === 'month' ? 30 : 365;
-    const dataPoints = range === 'week' ? 7 : range === 'month' ? 10 : 12;
-    
-    // Generate fill level trends
-    const fillLevelTrends = [];
-    for (let i = 0; i < dataPoints; i++) {
-      const date = new Date();
-      date.setDate(date.getDate() - Math.floor((daysToGenerate / dataPoints) * i));
-      
-      fillLevelTrends.push({
-        date: date.toISOString().split('T')[0],
-        average: Math.floor(Math.random() * 40) + 30, // 30-70%
-        critical: Math.floor(Math.random() * 5) + 1,   // 1-6 bins
-        total: 15
-      });
-    }
-    
-    // Collection statistics
-    const collections = Math.floor(Math.random() * 10) + 20; // 20-30
-    const previousCollections = Math.floor(Math.random() * 10) + 15; // 15-25
-    const changePercent = Math.round(((collections - previousCollections) / previousCollections) * 100);
-    
-    const collectionStats = {
-      collections,
-      previousCollections,
-      changePercent,
-      averageFillLevel: Math.floor(Math.random() * 20) + 70, // 70-90%
-      wasteCollected: Math.floor(Math.random() * 500) + 1000, // 1000-1500kg
-      timeSaved: Math.floor(Math.random() * 5) + 8 // 8-13 hours
-    };
-    
-    // Efficiency metrics
-    const efficiencyMetrics = {
-      routeEfficiency: Math.floor(Math.random() * 20) + 70, // 70-90%
-      fuelSaved: Math.floor(Math.random() * 50) + 100, // 100-150 liters
-      co2Reduced: Math.floor(Math.random() * 100) + 200, // 200-300kg
-      costSavings: Math.floor(Math.random() * 500) + 1000 // $1000-1500
-    };
-    
-    // Bin comparison
-    const binComparison = [];
-    const binNames = ['Main Street', 'Park Avenue', 'City Center', 'Garden Street', 'Station Road'];
-    
-    for (let i = 0; i < 5; i++) {
-      binComparison.push({
-        name: binNames[i],
-        fillRate: Math.floor(Math.random() * 10) + 5, // 5-15% per day
-        collections: Math.floor(Math.random() * 5) + 1, // 1-6
-        efficiency: Math.floor(Math.random() * 20) + 70 // 70-90%
-      });
-    }
-    
-    return {
-      fillLevelTrends: fillLevelTrends.reverse(), // Most recent last
-      collectionStats,
-      efficiencyMetrics,
-      binComparison
-    };
-  };
   
   // Draw a simple bar chart
   const renderBarChart = (data) => {

@@ -53,14 +53,14 @@ export const MainContentSection = () => {
               
               <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
                 Stay informed with real-time alerts for optimal waste management
-              </h2>
+          </h2>
 
               <p className="text-gray-600 text-lg leading-relaxed mb-10">
-                Our Smart Notifications Panel keeps you updated on bin status with
-                color-coded alerts. Receive timely notifications for overfilling,
-                moisture issues, and maintenance needs to ensure efficient waste
-                management.
-              </p>
+            Our Smart Notifications Panel keeps you updated on bin status with
+            color-coded alerts. Receive timely notifications for overfilling,
+            moisture issues, and maintenance needs to ensure efficient waste
+            management.
+          </p>
               
               {/* Notification types display */}
               <div className="space-y-6">
@@ -91,8 +91,8 @@ export const MainContentSection = () => {
                 </button>
               </div>
             </div>
-          </div>
-          
+        </div>
+
           {/* Image with Interactive Elements */}
           <div className="order-1 lg:order-2 relative perspective-component">
             {/* Phone mockup */}
@@ -101,8 +101,8 @@ export const MainContentSection = () => {
                 {/* App screen */}
                 <img
                   className="w-full h-auto"
-                  alt="Person using waste management app on smartphone"
-                  src="/images/placeholder-image-2.png"
+          alt="Person using waste management app on smartphone"
+          src="/images/placeholder-image-2.png"
                   onError={(e) => { e.target.src = 'https://placehold.co/400x720/e8fbde/61e923?text=Smart+Notifications' }}
                 />
                 
