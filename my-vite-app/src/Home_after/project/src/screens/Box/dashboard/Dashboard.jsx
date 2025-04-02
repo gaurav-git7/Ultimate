@@ -31,6 +31,7 @@ import { Button } from "../../../../../../components/ui/button.jsx";
 import { Input } from "../../../../../../components/ui/input.jsx";
 import { useAuth } from "../../../../../../firebase/AuthContext";
 import api from "../../../../../../lib/api";
+import ErrorBoundary from "./ErrorBoundary";
 import {
   Card,
   CardContent,
@@ -219,14 +220,14 @@ export const Dashboard = () => {
   const [binData, setBinData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [binHistory, setBinHistory] = useState([]);
-  const [refreshInterval, setRefreshInterval] = useState(30); // seconds
+  const [refreshInterval, setRefreshInterval] = useState(10); // Set default to 10 seconds
   const [emptyingBin, setEmptyingBin] = useState(false);
   const [schedulingCollection, setSchedulingCollection] = useState(false);
   const [actionSuccess, setActionSuccess] = useState(null);
   const [actionError, setActionError] = useState(null);
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
   const [previousFillLevel, setPreviousFillLevel] = useState(0);
+  const [connectionFailedAttempts, setConnectionFailedAttempts] = useState(0);
   
   // Navigation state
   const [isScrolled, setIsScrolled] = useState(false);
@@ -388,54 +389,48 @@ export const Dashboard = () => {
 
   // Function to fetch bin data - moved outside useEffect
   const fetchBinData = async () => {
-    if (!binId) return;
+    if (!binId || binId.trim() === "") {
+      console.error("Cannot fetch bin data: Invalid binId");
+      return;
+    }
 
     try {
       setLoading(true);
       setError(null);
       
-      // Try the direct ESP endpoint first
+      // Skip the direct ESP endpoint due to 500 errors and use the API endpoint directly
+      console.log(`Fetching bin data for ${binId} using API endpoint`);
+      
+      // Get fresh token if the user is logged in
+      let token = localStorage.getItem('authToken');
+      if (currentUser && (!token || token === 'undefined')) {
+        try {
+          token = await currentUser.getIdToken(true);
+          localStorage.setItem('authToken', token);
+          console.log('Refreshed Firebase ID token before API call');
+        } catch (tokenError) {
+          console.error('Failed to refresh token:', tokenError);
+        }
+      }
+      
+      // Create controller for API request
+      const apiController = new AbortController();
+      const apiSignal = apiController.signal;
+      const apiTimeoutId = setTimeout(() => apiController.abort(), 5000);
+      
       try {
-        console.log("Trying direct ESP endpoint");
-        const response = await fetch(`${ESP_API_URL}/bins/${binId}`);
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`ESP endpoint error: ${response.status} ${response.statusText}`, errorText);
-          throw new Error(`${response.status} ${response.statusText}: ${errorText}`);
-        }
-        
-        const data = await response.json();
-        console.log("ESP endpoint data:", data);
-        setBinData(data);
-        return;
-      } catch (directError) {
-        console.error("Error with direct endpoint:", directError);
-        
-        // Fall back to API endpoint
-        console.log("Trying API endpoint");
-        
-        // Get fresh token if the user is logged in
-        let token = localStorage.getItem('authToken');
-        if (currentUser && (!token || token === 'undefined')) {
-          try {
-            token = await currentUser.getIdToken(true);
-            localStorage.setItem('authToken', token);
-            console.log('Refreshed Firebase ID token before API call');
-          } catch (tokenError) {
-            console.error('Failed to refresh token:', tokenError);
-          }
-        }
-        
         const response = await fetch(`${API_BASE_URL}/bin-data/${binId}`, {
-          headers: {
+            headers: {
             'Authorization': `Bearer ${token}`,
-          }
+          },
+          signal: apiSignal
         });
         
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`API endpoint error: ${response.status} ${response.statusText}`, errorText);
+        clearTimeout(apiTimeoutId);
+          
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error(`API endpoint error: ${response.status} ${response.statusText}`, errorText);
           
           // If unauthorized, try to refresh token and retry
           if (response.status === 401 && currentUser) {
@@ -446,7 +441,7 @@ export const Dashboard = () => {
               
               // Retry with new token
               const retryResponse = await fetch(`${API_BASE_URL}/bin-data/${binId}`, {
-                headers: {
+              headers: {
                   'Authorization': `Bearer ${newToken}`,
                 }
               });
@@ -470,519 +465,60 @@ export const Dashboard = () => {
         
         const data = await response.json();
         console.log("API endpoint data:", data);
+        
+        // Check if the data has a timestamp within the last minute
+        const dataTimestamp = data.timestamp ? new Date(data.timestamp) : null;
+        const currentTime = new Date();
+        const timeDifference = dataTimestamp ? (currentTime - dataTimestamp) / 1000 : Infinity;
+        
+        if (timeDifference > 300) { // If data is more than 5 minutes old
+          console.warn("API data is stale (more than 5 minutes old). ESP may be disconnected.");
+          if (connected) {
+            setError("Device appears to be offline. Last data update was more than 5 minutes ago.");
+            setConnected(false);
+          }
+          throw new Error("API data is stale. Connection may be lost.");
+        }
+        
         setBinData(data);
+      } catch (apiError) {
+        clearTimeout(apiTimeoutId);
+        
+        if (apiError.name === 'AbortError') {
+          console.error("API endpoint request timed out after 5 seconds");
+          if (connected) {
+            setError("Connection timeout. Cannot communicate with the server.");
+            setConnected(false);
+          }
+        }
+        throw apiError;
       }
     } catch (error) {
-      console.error('Error fetching bin data:', error);
-      setError(`Failed to connect to bin: ${error.message}`);
-      setBinData(null);
+      console.error("Error fetching bin data:", error);
+      setError(`Failed to fetch bin data: ${error.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  // Function to fetch history data - moved outside useEffect
-  const fetchHistoryData = async () => {
-    if (!binId) return;
-
-    try {
-      // First try the direct ESP endpoint
-      console.log("Trying direct ESP history endpoint");
-      try {
-        const espResponse = await fetch(`${ESP_API_URL}/bins/${binId}/history`);
-        
-        if (espResponse.ok) {
-          const data = await espResponse.json();
-          console.log("ESP history endpoint data:", data);
-          setBinHistory(data);
-          return;
-        }
-        
-        const errorText = await espResponse.text();
-        console.error(`ESP history endpoint error: ${espResponse.status}`, errorText);
-        throw new Error(`ESP endpoint failed: ${espResponse.status}`);
-      } catch (espError) {
-        // ESP endpoint failed, try API endpoint
-        console.error("Error with direct history endpoint:", espError);
-      }
-      
-      // Fall back to API endpoint with token refresh logic
-      console.log("Trying API history endpoint");
-      
-      // Get fresh token if the user is logged in
-      let token = localStorage.getItem('authToken');
-      if (currentUser && (!token || token === 'undefined')) {
-        try {
-          token = await currentUser.getIdToken(true);
-          localStorage.setItem('authToken', token);
-          console.log('Refreshed Firebase ID token before history API call');
-        } catch (tokenError) {
-          console.error('Failed to refresh token:', tokenError);
-        }
-      }
-      
-      // Make API request with token
-      const apiResponse = await fetch(`${API_BASE_URL}/bin-data/${binId}/history`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        }
-      });
-      
-      if (apiResponse.ok) {
-        const data = await apiResponse.json();
-        console.log("API history endpoint data:", data);
-        setBinHistory(data);
-        return;
-      }
-      
-      const errorText = await apiResponse.text();
-      console.error(`API history endpoint error: ${apiResponse.status}`, errorText);
-      
-      // If unauthorized, try to refresh token and retry
-      if (apiResponse.status === 401 && currentUser) {
-        try {
-          console.log('Unauthorized, trying to refresh token and retry history fetch');
-          const newToken = await currentUser.getIdToken(true);
-          localStorage.setItem('authToken', newToken);
-          
-          // Retry with new token
-          const retryResponse = await fetch(`${API_BASE_URL}/bin-data/${binId}/history`, {
-            headers: {
-              'Authorization': `Bearer ${newToken}`,
-            }
-          });
-          
-          if (retryResponse.ok) {
-            const retryData = await retryResponse.json();
-            console.log("API history endpoint data (after token refresh):", retryData);
-            setBinHistory(retryData);
-            return;
-          }
-          
-          console.error(`Retry failed: ${retryResponse.status}`);
-          throw new Error(`Retry failed: ${retryResponse.status}`);
-        } catch (refreshError) {
-          console.error('Token refresh failed for history:', refreshError);
-          throw new Error(`Token refresh failed: ${refreshError.message}`);
-        }
-      }
-      
-      throw new Error(`API history endpoint failed: ${apiResponse.status}`);
-    } catch (error) {
-      console.error('Error fetching history data:', error);
-      // Don't show history errors to user, just set empty array
-      setBinHistory([]);
-    }
-  };
-
-  // Use the fetchBinData function in useEffect
-  useEffect(() => {
-    fetchBinData();
-  }, [binId]);
-
-  // Use the fetchHistoryData function in useEffect
-  useEffect(() => {
-    fetchHistoryData();
-  }, [binId]);
-
-  // Handle bin overflow notification
-  const handleBinOverflowNotification = async () => {
-    if (!binData) return;
-
-    try {
-      // Send push notification via FCM
-      const notificationPayload = {
-        title: "Bin Overflow Alert",
-        body: `Bin ${binData.binId} at ${binData.location} is ${binData.fillPercentage}% full!`,
-        data: {
-          binId: binData.binId,
-          location: binData.location,
-          type: "overflow",
-          timestamp: new Date().toISOString()
-        }
-      };
-
-      // If user is logged in, send email notification
-      if (currentUser) {
-        try {
-          const response = await fetch(`${API_BASE_URL}/notifications/email`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              to: currentUser.email,
-              subject: "Bin Overflow Alert",
-              text: `Bin ${binData.binId} at ${binData.location} is ${binData.fillPercentage}% full!`,
-              binId: binData.binId,
-              location: binData.location,
-              fillPercentage: binData.fillPercentage
-            }),
-          });
-
-          if (!response.ok) {
-            throw new Error('Failed to send email notification');
-          }
-        } catch (error) {
-          console.error('Error sending email notification:', error);
-        }
-      }
-    } catch (error) {
-      console.error('Error sending notification:', error);
-    }
-  };
-
-  // Monitor bin fill level and send notifications
-  useEffect(() => {
-    if (!binData) return;
-
-    if (binData.fillPercentage > 80) {
-      handleBinOverflowNotification();
-    }
-  }, [binData]);
-
-  // Function to handle notification toggle
-  const handleToggleNotifications = async () => {
-    try {
-    if (notificationsEnabled) {
-      // Disable notifications
-      setNotificationsEnabled(false);
-    } else {
-        // Request permission
-        const permission = await Notification.requestPermission();
-        
-        if (permission === "granted") {
-          // Initialize Firebase messaging
-          const messaging = await initializeMessaging();
-          
-          if (messaging) {
-            // Get FCM token
-            const token = await messaging.getToken();
-            
-            if (token) {
-              // Save token to backend
-              await saveFcmToken(userId, token);
-        setNotificationsEnabled(true);
-              
-              // Set up message listener
-              setupMessageListener((payload) => {
-                console.log("Received notification:", payload);
-                // Show notification
-                if (Notification.permission === "granted") {
-                  new Notification(payload.notification.title, {
-                    body: payload.notification.body,
-                    icon: "/images/image-5.png",
-                    badge: "/images/image-5.png",
-                    data: payload.data,
-                    tag: payload.data?.type || 'default',
-                    requireInteraction: true
-                  });
-                }
-              });
-            }
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Error toggling notifications:", error);
-      setNotificationsEnabled(false);
-    }
-  };
-
-  // Function to connect to the bin
-  const handleConnect = async (binIdToConnect = binId, locationToConnect = binLocation) => {
-    if (!binIdToConnect) {
-      setError("Please enter a bin ID");
+  // Function to handle manual refresh button clicks
+  const handleRefresh = async () => {
+    if (!connected || loading) {
       return;
     }
     
-    setIsConnecting(true);
+    setLoading(true);
     try {
-      // First check if the bin exists by getting its data
-      let data;
-      let errorMessages = [];
-      
-      // Try direct ESP8266 endpoint first
-      try {
-        console.log(`Trying direct ESP endpoint for bin ${binIdToConnect}`);
-        const response = await fetch(`${ESP_API_URL}/bins/${binIdToConnect}`);
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`ESP endpoint error: ${response.status} ${response.statusText}`, errorText);
-          errorMessages.push(`ESP endpoint: ${response.status} ${response.statusText}`);
-          throw new Error(`ESP endpoint failed: ${response.status}`);
-        }
-        
-        data = await response.json();
-        console.log("Successfully connected via ESP endpoint:", data);
-      } catch (espError) {
-        console.error("ESP endpoint connection failed:", espError);
-        
-        // Fall back to API endpoint
-        try {
-          console.log(`Trying API endpoint for bin ${binIdToConnect}`);
-          
-          // Get fresh token if the user is logged in
-          let token = localStorage.getItem('authToken');
-          if (currentUser && (!token || token === 'undefined')) {
-            try {
-              token = await currentUser.getIdToken(true);
-              localStorage.setItem('authToken', token);
-              console.log('Refreshed Firebase ID token before connect API call');
-            } catch (tokenError) {
-              console.error('Failed to refresh token:', tokenError);
-            }
-          }
-          
-          const response = await fetch(`${API_BASE_URL}/bin-data/${binIdToConnect}`, {
-            headers: {
-              'Authorization': `Bearer ${token}`,
-            }
-          });
-          
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error(`API endpoint error: ${response.status} ${response.statusText}`, errorText);
-            errorMessages.push(`API endpoint: ${response.status} ${response.statusText}`);
-            
-            // If unauthorized, try to refresh token and retry
-            if (response.status === 401 && currentUser) {
-              try {
-                console.log('Unauthorized, trying to refresh token and retry');
-                const newToken = await currentUser.getIdToken(true);
-                localStorage.setItem('authToken', newToken);
-                
-                // Retry with new token
-                const retryResponse = await fetch(`${API_BASE_URL}/bin-data/${binIdToConnect}`, {
-                  headers: {
-                    'Authorization': `Bearer ${newToken}`,
-                  }
-                });
-                
-                if (!retryResponse.ok) {
-                  throw new Error(`Retry failed: ${retryResponse.status}`);
-                }
-                
-                data = await retryResponse.json();
-                console.log("Successfully connected via API endpoint (after token refresh):", data);
-              } catch (refreshError) {
-                console.error('Token refresh failed:', refreshError);
-                throw new Error(`API endpoint failed: ${response.status}`);
-              }
-            } else {
-              throw new Error(`API endpoint failed: ${response.status}`);
-            }
-          } else {
-            data = await response.json();
-            console.log("Successfully connected via API endpoint:", data);
-          }
-        } catch (apiError) {
-          console.error("API endpoint connection failed:", apiError);
-          errorMessages.push(`API attempt: ${apiError.message}`);
-          throw new Error("Both connection attempts failed");
-        }
-      }
-      
-      // If we made it here, we have a successful connection
-      if (data) {
-        // Set bin data
-        setBinData(data);
-        setConnected(true);
-        
-        // Fetch history data
-        try {
-          let historyData;
-          try {
-            console.log(`Fetching history for bin ${binIdToConnect} from ESP endpoint`);
-            const historyResponse = await fetch(`${ESP_API_URL}/bins/${binIdToConnect}/history`);
-            
-            if (!historyResponse.ok) {
-              const errorText = await historyResponse.text();
-              console.error(`ESP history endpoint error: ${historyResponse.status}`, errorText);
-              throw new Error(`ESP history endpoint failed: ${historyResponse.status}`);
-            }
-            
-            historyData = await historyResponse.json();
-            console.log("Successfully fetched history via ESP endpoint:", historyData);
-          } catch (espHistoryError) {
-            console.error("ESP history endpoint failed:", espHistoryError);
-            
-            // Try API endpoint
-            console.log(`Fetching history for bin ${binIdToConnect} from API endpoint`);
-            
-            // Get fresh token if the user is logged in
-            let token = localStorage.getItem('authToken');
-            if (currentUser && (!token || token === 'undefined')) {
-              try {
-                token = await currentUser.getIdToken(true);
-                localStorage.setItem('authToken', token);
-                console.log('Refreshed Firebase ID token before history API call');
-              } catch (tokenError) {
-                console.error('Failed to refresh token:', tokenError);
-              }
-            }
-            
-            const historyResponse = await fetch(`${API_BASE_URL}/bin-data/${binIdToConnect}/history`, {
-              headers: {
-                'Authorization': `Bearer ${token}`,
-              }
-            });
-            
-            if (!historyResponse.ok) {
-              const errorText = await historyResponse.text();
-              console.error(`API history endpoint error: ${historyResponse.status}`, errorText);
-              
-              // If unauthorized, try to refresh token and retry
-              if (historyResponse.status === 401 && currentUser) {
-                try {
-                  console.log('Unauthorized, trying to refresh token and retry history fetch');
-                  const newToken = await currentUser.getIdToken(true);
-                  localStorage.setItem('authToken', newToken);
-                  
-                  // Retry with new token
-                  const retryResponse = await fetch(`${API_BASE_URL}/bin-data/${binIdToConnect}/history`, {
-                    headers: {
-                      'Authorization': `Bearer ${newToken}`,
-                    }
-                  });
-                  
-                  if (!retryResponse.ok) {
-                    throw new Error(`Retry failed: ${retryResponse.status}`);
-                  }
-                  
-                  historyData = await retryResponse.json();
-                  console.log("Successfully fetched history via API endpoint (after token refresh):", historyData);
-                } catch (refreshError) {
-                  console.error('Token refresh failed for history:', refreshError);
-                  throw new Error(`API history endpoint failed: ${historyResponse.status}`);
-                }
-              } else {
-                throw new Error(`API history endpoint failed: ${historyResponse.status}`);
-              }
-            } else {
-              historyData = await historyResponse.json();
-              console.log("Successfully fetched history via API endpoint:", historyData);
-            }
-          }
-          
-          // Set history data if we have it
-          if (historyData) {
-            setBinHistory(historyData);
-          }
-          
-          // If no location was provided, use the one from the bin data
-          if (!locationToConnect && data.location) {
-            setBinLocation(data.location);
-            locationToConnect = data.location;
-          }
-          
-          // Update location in bin if provided
-          if (locationToConnect && locationToConnect !== data.location) {
-            try {
-              // Try to update the bin location
-              console.log(`Updating bin location to: ${locationToConnect}`);
-              await api.bins.updateBin(binIdToConnect, { location: locationToConnect });
-            } catch (updateErr) {
-              console.error("Error updating bin location:", updateErr);
-              // Non-critical error, don't show to user
-            }
-          }
-          
-          // Save the bin ID and location to local storage for this user
-          if (userId) {
-            try {
-              localStorage.setItem(`smartbin_${userId}_binId`, binIdToConnect);
-              localStorage.setItem(`smartbin_${userId}_location`, locationToConnect || "");
-            } catch (err) {
-              console.error("Error saving to localStorage:", err);
-            }
-          }
-          
-          // Set previous fill level for overflow detection
-          setPreviousFillLevel(data.fillPercentage || 0);
-          
-          // Clear any previous error
-          setError(null);
-        } catch (historyErr) {
-          console.error("All history fetch attempts failed:", historyErr);
-          setBinHistory([]);
-          // Non-critical error, don't prevent dashboard from showing
-        }
-      }
-    } catch (err) {
-      console.error("Error connecting to bin:", err);
-      
-      // Handle specific error cases with better debugging info
-      if (err.message.includes("Not found") || err.message.includes("404")) {
-        setError(`Bin ${binIdToConnect} not found. Please check the ID and try again.`);
-      } else if (err.message.includes("network")) {
-        setError("Network error. Please check your internet connection and try again.");
-      } else if (err.message.includes("Unauthorized") || err.message.includes("401")) {
-        setError("Authentication error. Please log in again to access this bin.");
-      } else {
-        setError(`Failed to connect to bin ${binIdToConnect}. Error: ${err.message}`);
-      }
-      
-      // Reset connection state
-      setConnected(false);
-      setBinData(null);
-      setBinHistory([]);
-      
-      // Remove saved bin ID from local storage on error
-      if (userId) {
-        try {
-          localStorage.removeItem(`smartbin_${userId}_binId`);
-          localStorage.removeItem(`smartbin_${userId}_location`);
-        } catch (err) {
-          console.error("Error removing from localStorage:", err);
-        }
-      }
+      console.log(`Manual refresh initiated for bin ${binId}`);
+      await fetchBinData();
+      console.log(`Manual refresh completed for bin ${binId}`);
+    } catch (error) {
+      console.error("Error during manual refresh:", error);
+      setError(`Refresh failed: ${error.message}`);
     } finally {
-      setIsConnecting(false);
+      setLoading(false);
     }
   };
-
-  // Function to disconnect from the bin
-  const handleDisconnect = () => {
-    setConnected(false);
-    setBinData(null);
-    setBinHistory([]);
-    
-    // Remove saved bin ID from local storage
-    if (userId) {
-      try {
-      localStorage.removeItem(`smartbin_${userId}_binId`);
-      localStorage.removeItem(`smartbin_${userId}_location`);
-      } catch (err) {
-        console.error("Error removing from localStorage:", err);
-      }
-    }
-  };
-
-  // Now handleRefresh can access fetchBinData and fetchHistoryData
-  const handleRefresh = () => {
-    if (!connected) return;
-    
-    // These functions are now accessible at component level
-    fetchBinData();
-    fetchHistoryData();
-  };
-
-  // Set up interval for automatic data refresh when connected
-  useEffect(() => {
-    let intervalId;
-    
-    if (connected && binId) {
-      intervalId = setInterval(() => {
-        fetchBinData(binId);
-      }, refreshInterval * 1000);
-    }
-    
-    return () => {
-      if (intervalId) clearInterval(intervalId);
-    };
-  }, [connected, binId, refreshInterval]);
 
   // Function to get status color
   const getStatusColor = (status) => {
@@ -996,8 +532,9 @@ export const Dashboard = () => {
 
   // Function to get background color for progress bar
   const getProgressBarColor = (percentage) => {
-    if (percentage >= 80) return "bg-red-500";
-    if (percentage >= 50) return "bg-amber-500";
+    const fillLevel = percentage || 0;
+    if (fillLevel >= 80) return "bg-red-500";
+    if (fillLevel >= 50) return "bg-amber-500";
     return "bg-green-500";
   };
 
@@ -1313,12 +850,133 @@ export const Dashboard = () => {
       : mobileMenuOpen ? "transform-none" : "md:translate-y-0"
   }`;
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-[#f0ffe8] to-white">
-      {/* Add style tag for leaf animations */}
-      <style dangerouslySetInnerHTML={{ __html: leafAnimationStyles }}></style>
+  // Set up interval for automatic data refresh when connected
+  useEffect(() => {
+    let intervalId;
+    const MAX_FAILED_ATTEMPTS = 3;
+    
+    if (connected && binId) {
+      console.log(`Setting up auto-refresh for bin ${binId} every ${refreshInterval} seconds`);
       
-      {/* Enhanced Navigation Header */}
+      intervalId = setInterval(async () => {
+        try {
+          console.log(`Auto-refresh: Checking bin status for ${binId}`);
+          
+          // Validate binId
+          if (!binId || binId.trim() === "") {
+            console.error("Auto-refresh: Invalid binId");
+            return;
+          }
+          
+          // Skip direct ESP endpoint and use the more reliable API endpoint
+          try {
+            // Use fetchBinData which already has proper error handling
+            await fetchBinData();
+            
+            // If we successfully retrieved data, reset the failed attempts counter
+            if (connectionFailedAttempts > 0) {
+              setConnectionFailedAttempts(0);
+            }
+          } catch (error) {
+            console.error("Auto-refresh: API endpoint failed", error);
+            
+            // Increment failed attempts counter
+            const newFailedCount = connectionFailedAttempts + 1;
+            setConnectionFailedAttempts(newFailedCount);
+            
+            console.error(`Auto-refresh: Failed to reach any endpoint (attempt ${newFailedCount}/${MAX_FAILED_ATTEMPTS})`);
+            
+            if (newFailedCount >= MAX_FAILED_ATTEMPTS) {
+              console.error("Auto-refresh: Maximum failed attempts reached. Setting to disconnected.");
+              setError("Connection lost. Unable to reach device or server after multiple attempts.");
+              setConnected(false);
+              // Don't clear the interval right away - let it be handled by cleanup function
+            }
+          }
+        } catch (error) {
+          console.error("Auto-refresh: Error checking bin status", error);
+          
+          // Increment failed attempts counter
+          const newFailedCount = connectionFailedAttempts + 1;
+          setConnectionFailedAttempts(newFailedCount);
+          
+          if (newFailedCount >= MAX_FAILED_ATTEMPTS) {
+            console.error("Auto-refresh: Maximum failed attempts reached. Setting to disconnected.");
+            setError("Connection lost. Unable to reach device after multiple attempts.");
+            setConnected(false);
+            // Don't clear the interval right away - let it be handled by cleanup function
+          }
+        }
+      }, refreshInterval * 1000);
+    }
+    
+    return () => {
+      if (intervalId) {
+        console.log("Clearing auto-refresh interval");
+        clearInterval(intervalId);
+      }
+    };
+  }, [connected, binId, refreshInterval, connectionFailedAttempts]);
+  
+  // Function to handle connecting to a bin
+  const handleConnect = async (binId, binLocation) => {
+    if (!binId || binId.trim() === "") {
+      console.error("Cannot connect: Invalid binId");
+      return;
+    }
+
+    setIsConnecting(true);
+    setError(null);
+
+    try {
+      // Simulate connection logic
+      console.log(`Connecting to bin ${binId} at location ${binLocation || 'unknown'}`);
+      
+      // Assume connection is successful
+      setConnected(true);
+      setBinId(binId);
+      setBinLocation(binLocation);
+      
+      // Fetch initial data
+      await fetchBinData();
+      
+      console.log(`Connected to bin ${binId}`);
+    } catch (error) {
+      console.error("Error connecting to bin:", error);
+      setError(`Failed to connect to bin: ${error.message}`);
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  // Function to handle disconnecting from a bin
+  const handleDisconnect = () => {
+    if (!connected) {
+      console.error("Cannot disconnect: No bin is currently connected");
+      return;
+    }
+
+    console.log(`Disconnecting from bin ${binId}`);
+    setConnected(false);
+    setBinId("");
+    setBinLocation("");
+    setBinData(null);
+    setError(null);
+    console.log("Disconnected from bin");
+  };
+
+  return (
+    <ErrorBoundary>
+    <div className="min-h-screen bg-gradient-to-br from-[#f0ffe8] to-white">
+        <style>{leafAnimationStyles}</style>
+        
+        {/* Decorative leaves */}
+        <div className="leaf leaf-1"></div>
+        <div className="leaf leaf-2"></div>
+        <div className="leaf leaf-3"></div>
+        <div className="leaf leaf-4"></div>
+        
+        {/* Navigation Header */}
       <header className={navbarClasses}>
         <div className="container mx-auto px-4 md:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
@@ -1472,8 +1130,9 @@ export const Dashboard = () => {
             </div>
           </div>
         </div>
+        </header>
 
-        {/* Enhanced Mobile Menu with glass morphism and animations */}
+        {/* Enhanced Mobile Menu - Moved outside header */}
         <div 
           className={`md:hidden transition-all duration-500 overflow-hidden ${
             mobileMenuOpen 
@@ -1583,9 +1242,8 @@ export const Dashboard = () => {
             </div>
           </div>
         </div>
-      </header>
       
-      {/* Main Dashboard Content - with spacing to account for fixed header */}
+        {/* Main Dashboard Content */}
       <main className="pt-40 pb-12 px-4 md:px-8 lg:px-16 container mx-auto bg-gradient-to-br from-[#f0ffe8]/50 to-white rounded-t-2xl">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6">
         <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-2 md:mb-0">
@@ -1682,18 +1340,18 @@ export const Dashboard = () => {
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
               <div className="flex items-center justify-between">
                 <h3 className="font-medium text-gray-600">Fill Level</h3>
-                <BarChartIcon className={getStatusColor(binData.status)} size={20} />
+                <BarChartIcon className={getStatusColor(binData?.status)} size={20} />
               </div>
-              <p className="text-3xl font-bold mt-2">{binData.fillPercentage}%</p>
+              <p className="text-3xl font-bold mt-2">{binData?.fillPercentage || 0}%</p>
               <div className="mt-2 bg-gray-200 h-2 rounded-full overflow-hidden">
                 <div 
-                  className={`h-full ${getProgressBarColor(binData.fillPercentage)}`}
-                  style={{ width: `${binData.fillPercentage}%` }}
+                  className={`h-full ${getProgressBarColor(binData?.fillPercentage || 0)}`}
+                  style={{ width: `${binData?.fillPercentage || 0}%` }}
                 ></div>
               </div>
               <p className="text-sm text-gray-500 mt-2">
-                Status: <span className={getStatusColor(binData.status)}>
-                  {binData.status.charAt(0).toUpperCase() + binData.status.slice(1)}
+                Status: <span className={getStatusColor(binData?.status)}>
+                  {binData?.status?.charAt(0).toUpperCase() + binData?.status?.slice(1) || 'Unknown'}
                 </span>
               </p>
             </div>
@@ -1703,7 +1361,7 @@ export const Dashboard = () => {
                 <h3 className="font-medium text-gray-600">Distance</h3>
                 <MapPinIcon className="text-blue-500" size={20} />
               </div>
-              <p className="text-3xl font-bold mt-2">{binData.distance} cm</p>
+              <p className="text-3xl font-bold mt-2">{binData?.distance || 0} cm</p>
               <p className="text-sm text-gray-500 mt-2">From sensor to waste</p>
             </div>
             
@@ -1712,15 +1370,15 @@ export const Dashboard = () => {
                 <h3 className="font-medium text-gray-600">Battery Level</h3>
                 <SettingsIcon className="text-purple-500" size={20} />
               </div>
-              <p className="text-3xl font-bold mt-2">{binData.batteryLevel}%</p>
+              <p className="text-3xl font-bold mt-2">{binData?.batteryLevel || 0}%</p>
               <div className="mt-2 bg-gray-200 h-2 rounded-full overflow-hidden">
                 <div 
-                  className={`h-full ${binData.batteryLevel > 20 ? 'bg-green-500' : 'bg-red-500'}`}
-                  style={{ width: `${binData.batteryLevel}%` }}
+                  className={`h-full ${(binData?.batteryLevel || 0) > 20 ? 'bg-green-500' : 'bg-red-500'}`}
+                  style={{ width: `${binData?.batteryLevel || 0}%` }}
                 ></div>
               </div>
               <p className="text-sm text-gray-500 mt-2">
-                {binData.batteryLevel > 20 ? 'Good' : 'Low battery'}
+                {(binData?.batteryLevel || 0) > 20 ? 'Good' : 'Low battery'}
               </p>
             </div>
             
@@ -1729,7 +1387,7 @@ export const Dashboard = () => {
                 <h3 className="font-medium text-gray-600">Last Updated</h3>
                 <RefreshCcwIcon className="text-teal-500" size={20} />
               </div>
-              <p className="text-xl font-bold mt-2">{formatTimestamp(binData.timestamp)}</p>
+              <p className="text-xl font-bold mt-2">{formatTimestamp(binData?.timestamp)}</p>
               <p className="text-sm text-gray-500 mt-2">Auto-refresh: {refreshInterval}s</p>
               <button 
                 onClick={handleRefresh}
@@ -1741,15 +1399,15 @@ export const Dashboard = () => {
             </div>
           </div>
           
-          {/* Smart bin visualization */}
+          {/* Smart bin visualization - Keep this section but remove history section */}
           <div className="flex flex-col md:flex-row gap-6 mb-8">
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 flex-1">
               <h3 className="font-semibold text-lg mb-4 text-gray-800">Bin Visualization</h3>
               <div className="flex justify-center">
                 <div className="relative h-80 w-40 border-2 border-gray-400 rounded-md overflow-hidden">
                   <div 
-                    className={`absolute bottom-0 left-0 w-full ${getProgressBarColor(binData.fillPercentage)} transition-all duration-1000 ease-in-out`} 
-                    style={{ height: `${binData.fillPercentage}%` }}
+                    className={`absolute bottom-0 left-0 w-full ${getProgressBarColor(binData?.fillPercentage || 0)} transition-all duration-1000 ease-in-out`} 
+                    style={{ height: `${binData?.fillPercentage || 0}%` }}
                   ></div>
                   
                   {/* Sensor at the top */}
@@ -1782,75 +1440,25 @@ export const Dashboard = () => {
               </div>
               <div className="mt-4 text-center">
                 <p className="text-sm text-gray-600">
-                  Bin ID: <span className="font-medium">{binData.binId}</span>
+                  Bin ID: <span className="font-medium">{binData?.binId || 'Unknown'}</span>
                 </p>
                 <p className="text-sm text-gray-600">
-                  Location: <span className="font-medium">{binData.location}</span>
+                  Location: <span className="font-medium">{binData?.location || 'Unknown'}</span>
                 </p>
                 <p className="text-sm text-gray-600 mt-2">
-                  {binData.status === "critical" && (
+                  {binData?.status === "critical" && (
                     <span className="text-red-600 font-medium">Requires immediate attention!</span>
                   )}
-                  {binData.status === "warning" && (
+                  {binData?.status === "warning" && (
                     <span className="text-amber-600 font-medium">Will need emptying soon</span>
                   )}
-                  {binData.status === "normal" && (
+                  {binData?.status === "normal" && (
                     <span className="text-green-600 font-medium">Bin level normal</span>
                   )}
+                  {(!binData?.status || !["critical", "warning", "normal"].includes(binData?.status)) && (
+                    <span className="text-gray-600 font-medium">Status unknown</span>
+                  )}
                 </p>
-              </div>
-            </div>
-            
-            {/* Readings history */}
-            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200 flex-1">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-semibold text-lg text-gray-800">Reading History</h3>
-                <div className="flex items-center gap-2">
-                  <label className="text-sm text-gray-600">Refresh every:</label>
-                  <select 
-                    value={refreshInterval}
-                    onChange={(e) => setRefreshInterval(Number(e.target.value))}
-                    className="text-sm p-1 border border-gray-300 rounded"
-                  >
-                    <option value={10}>10s</option>
-                    <option value={30}>30s</option>
-                    <option value={60}>1m</option>
-                    <option value={300}>5m</option>
-                  </select>
-                </div>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-gray-50">
-                      <th className="py-2 px-3 text-left font-medium text-gray-600">Time</th>
-                      <th className="py-2 px-3 text-center font-medium text-gray-600">Fill %</th>
-                      <th className="py-2 px-3 text-center font-medium text-gray-600">Dist (cm)</th>
-                      <th className="py-2 px-3 text-center font-medium text-gray-600">Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {binHistory.length > 0 ? binHistory.map((reading, index) => (
-                      <tr key={index} className={index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}>
-                        <td className="py-2 px-3">{formatTimestamp(reading.timestamp)}</td>
-                        <td className="py-2 px-3 text-center">{reading.fillPercentage}%</td>
-                        <td className="py-2 px-3 text-center">{reading.distance}</td>
-                        <td className="py-2 px-3 text-center">
-                          <span className={`inline-block w-2 h-2 rounded-full ${getProgressBarColor(reading.fillPercentage)} mr-1`}></span>
-                          <span className={getStatusColor(reading.status)}>
-                            {reading.status.charAt(0).toUpperCase() + reading.status.slice(1)}
-                          </span>
-                        </td>
-                      </tr>
-                    )) : (
-                      <tr>
-                        <td colSpan="4" className="py-4 text-center text-gray-500">
-                          No history data available
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
               </div>
             </div>
           </div>
@@ -2001,5 +1609,6 @@ export const Dashboard = () => {
       )}
       </main>
     </div>
+    </ErrorBoundary>
   );
 }; 

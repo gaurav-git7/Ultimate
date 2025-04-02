@@ -127,105 +127,105 @@ router.get('/:binId/history', authenticateUser, async (req, res) => {
 // Receive data from ESP8266
 router.post('/', async (req, res) => {
   try {
-    const data = req.body;
+    const binData = req.body;
     
-    // Validate required fields
-    if (!data.binId) {
-      return res.status(400).json({ message: 'Missing required field: binId' });
+    // Validate input
+    if (!binData || !binData.binId) {
+      return res.status(400).json({ message: 'Bin ID is required' });
     }
     
-    if (data.distance === undefined || data.fillPercentage === undefined) {
-      return res.status(400).json({ 
-        message: 'Missing required fields: distance or fillPercentage' 
-      });
+    // Add timestamp if not provided
+    if (!binData.timestamp) {
+      binData.timestamp = admin.firestore.FieldValue.serverTimestamp();
     }
     
-    // Add timestamp and default values
-    const timestamp = admin.firestore.FieldValue.serverTimestamp();
-    
-    // Calculate status if not provided
-    let status = data.status;
-    if (!status) {
-      if (data.fillPercentage >= 80) {
-        status = 'critical';
-      } else if (data.fillPercentage >= 50) {
-        status = 'warning';
-      } else {
-        status = 'normal';
-      }
+    // Convert string timestamp to Firestore timestamp if needed
+    if (typeof binData.timestamp === 'string') {
+      binData.timestamp = new Date(binData.timestamp);
     }
     
-    // Create the record with all the ESP8266 data
-    const binData = {
-      ...data,
-      status,
-      timestamp,
-      lastUpdated: timestamp
-    };
-    
-    // Store in Firestore
+    // Add bin data to Firestore
     const docRef = await collections.bins().add(binData);
     
-    // Update the in-memory cache
-    binDataCache.set(data.binId, {
-      ...binData,
-      id: docRef.id,
-      timestamp: new Date().toISOString() // Replace server timestamp for immediate use
-    });
+    // Update cache
+    binDataCache.set(binData.binId, binData);
     
-    // Check if this is a critical level and needs notification
-    if (status === 'critical') {
-      // Find the bin owner
-      const binQuery = await collections.bins()
-        .where('binId', '==', data.binId)
-        .limit(1)
-        .get();
-        
-      if (!binQuery.empty) {
-        const bin = binQuery.docs[0].data();
-        if (bin.owner) {
-          // Create notification for the owner
-          const notification = {
-            title: 'Bin Alert: Overflow Detected',
-            message: `Your bin at ${data.location || 'unknown location'} has reached ${data.fillPercentage}% capacity and needs attention.`,
-            type: 'warning',
-            priority: 'high',
-            isRead: false,
-            user: bin.owner,
-            relatedBin: docRef.id,
-            category: 'alert',
-            createdAt: timestamp
-          };
-          
-          await collections.notifications().add(notification);
-        }
-      }
-    }
-    
-    // Check if bin is overflowing and send notification if fill percentage is > 80%
-    const OVERFLOW_THRESHOLD = 80;
-    if (data.fillPercentage > OVERFLOW_THRESHOLD) {
-      console.log(`Bin ${data.binId} is overflowing (${data.fillPercentage}%). Sending notification.`);
-      
-      // Send FCM notification for overflowing bin
-      const notificationResult = await sendBinOverflowNotification(
-        data.binId,
-        data.fillPercentage,
-        data.location || 'Not specified'
-      );
-      
-      console.log('Notification result:', notificationResult);
-    }
+    // Prune history to keep only the latest 10 entries
+    await pruneHistoryData(binData.binId, 10);
     
     res.status(201).json({ 
-      message: 'Data received successfully',
-      id: docRef.id
+      id: docRef.id, 
+      ...binData,
+      message: 'Bin data added successfully'
     });
   } catch (error) {
-    console.error('Error saving bin data:', error);
+    console.error('Error creating bin data:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });
+
+// Function to prune history data to keep only the latest n entries
+const pruneHistoryData = async (binId, retentionLimit = 10) => {
+  try {
+    console.log(`Pruning history for bin ${binId} to keep latest ${retentionLimit} entries`);
+    
+    // Get all entries for the bin, sorted by timestamp descending
+    const allHistoryQuery = await collections.bins()
+      .where('binId', '==', binId)
+      .orderBy('timestamp', 'desc')
+      .get();
+    
+    if (allHistoryQuery.empty || allHistoryQuery.size <= retentionLimit) {
+      console.log(`No pruning needed for bin ${binId}, only ${allHistoryQuery.size} entries found`);
+      return;
+    }
+    
+    // Calculate how many entries to delete
+    const entriesToDelete = allHistoryQuery.size - retentionLimit;
+    console.log(`Will delete ${entriesToDelete} older entries for bin ${binId}`);
+    
+    // Get the documents to delete (the oldest ones)
+    const docsToDelete = [];
+    let counter = 0;
+    
+    allHistoryQuery.forEach(doc => {
+      // Skip the newest entries up to the retention limit
+      if (counter >= retentionLimit) {
+        docsToDelete.push(doc.ref);
+      }
+      counter++;
+    });
+    
+    // Delete old entries in batches (Firestore has a limit of 500 operations per batch)
+    if (docsToDelete.length > 0) {
+      const batchSize = 500;
+      let batch = admin.firestore().batch();
+      let batchCount = 0;
+      
+      for (let i = 0; i < docsToDelete.length; i++) {
+        batch.delete(docsToDelete[i]);
+        batchCount++;
+        
+        // Commit batch if it reaches the limit
+        if (batchCount >= batchSize) {
+          await batch.commit();
+          batch = admin.firestore().batch();
+          batchCount = 0;
+        }
+      }
+      
+      // Commit any remaining operations
+      if (batchCount > 0) {
+        await batch.commit();
+      }
+      
+      console.log(`Successfully pruned ${docsToDelete.length} history entries for bin ${binId}`);
+    }
+  } catch (error) {
+    console.error(`Error pruning history data for bin ${binId}:`, error);
+    // We don't throw the error as this is a background operation
+  }
+};
 
 // Clear bin data history (for testing)
 router.delete('/:binId/history', authenticateUser, async (req, res) => {
@@ -263,6 +263,31 @@ router.delete('/:binId/history', authenticateUser, async (req, res) => {
     });
   } catch (error) {
     console.error('Error clearing bin history:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// Endpoint to prune bin history to keep only latest entries
+router.post('/:binId/prune-history', authenticateUser, async (req, res) => {
+  try {
+    const { binId } = req.params;
+    const limit = parseInt(req.query.limit || req.body.limit || 10);
+    
+    // Validate limit
+    if (isNaN(limit) || limit < 1 || limit > 100) {
+      return res.status(400).json({ message: 'Invalid limit. Must be between 1 and 100.' });
+    }
+    
+    // Call pruning function
+    await pruneHistoryData(binId, limit);
+    
+    res.status(200).json({ 
+      message: `Bin history pruned successfully to latest ${limit} entries`,
+      binId,
+      limit
+    });
+  } catch (error) {
+    console.error('Error pruning bin history:', error);
     res.status(500).json({ message: 'Server error' });
   }
 });

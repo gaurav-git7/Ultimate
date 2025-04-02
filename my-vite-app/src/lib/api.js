@@ -241,6 +241,20 @@ const api = {
       });
       return handleResponse(response);
     },
+    
+    // Prune bin history to keep only latest n entries (default 10)
+    pruneHistory: async (binId, limit = 10) => {
+      if (!binId) throw new Error("Bin ID is required");
+      const response = await fetch(`${BASE_URL}/bin-data/${binId}/prune-history?limit=${limit}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getAuthToken()}`,
+        },
+        body: JSON.stringify({ limit }),
+      });
+      return handleResponse(response);
+    },
   },
 
   // User-related endpoints
