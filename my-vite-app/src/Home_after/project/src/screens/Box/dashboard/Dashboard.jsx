@@ -313,6 +313,30 @@ export const Dashboard = () => {
     }
   }, [currentUser, userId]);
 
+  // Get and store Firebase ID token for API authentication
+  useEffect(() => {
+    const getAndStoreIdToken = async () => {
+      if (currentUser) {
+        try {
+          // Get fresh ID token from Firebase
+          const idToken = await currentUser.getIdToken(true);
+          
+          // Store token in localStorage for API requests
+          localStorage.setItem('authToken', idToken);
+          console.log('Firebase ID token stored in localStorage');
+        } catch (error) {
+          console.error('Error getting Firebase ID token:', error);
+        }
+      } else {
+        // Remove token when user is signed out
+        localStorage.removeItem('authToken');
+        console.log('Firebase ID token removed from localStorage');
+      }
+    };
+    
+    getAndStoreIdToken();
+  }, [currentUser]);
+
   // Load the saved bin ID from local storage when component mounts
   useEffect(() => {
     if (userId) {
@@ -390,16 +414,58 @@ export const Dashboard = () => {
         
         // Fall back to API endpoint
         console.log("Trying API endpoint");
+        
+        // Get fresh token if the user is logged in
+        let token = localStorage.getItem('authToken');
+        if (currentUser && (!token || token === 'undefined')) {
+          try {
+            token = await currentUser.getIdToken(true);
+            localStorage.setItem('authToken', token);
+            console.log('Refreshed Firebase ID token before API call');
+          } catch (tokenError) {
+            console.error('Failed to refresh token:', tokenError);
+          }
+        }
+        
         const response = await fetch(`${API_BASE_URL}/bin-data/${binId}`, {
           headers: {
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+            'Authorization': `Bearer ${token}`,
           }
         });
         
         if (!response.ok) {
           const errorText = await response.text();
           console.error(`API endpoint error: ${response.status} ${response.statusText}`, errorText);
-          throw new Error(`${response.status} ${response.statusText}: ${errorText}`);
+          
+          // If unauthorized, try to refresh token and retry
+          if (response.status === 401 && currentUser) {
+            try {
+              console.log('Unauthorized, trying to refresh token and retry');
+              const newToken = await currentUser.getIdToken(true);
+              localStorage.setItem('authToken', newToken);
+              
+              // Retry with new token
+              const retryResponse = await fetch(`${API_BASE_URL}/bin-data/${binId}`, {
+                headers: {
+                  'Authorization': `Bearer ${newToken}`,
+                }
+              });
+              
+              if (!retryResponse.ok) {
+                throw new Error(`Retry failed: ${retryResponse.status}`);
+              }
+              
+              const retryData = await retryResponse.json();
+              console.log("API endpoint data (after token refresh):", retryData);
+              setBinData(retryData);
+              return;
+            } catch (refreshError) {
+              console.error('Token refresh failed:', refreshError);
+              throw new Error(`${response.status} ${response.statusText}: ${errorText}`);
+            }
+          } else {
+            throw new Error(`${response.status} ${response.statusText}: ${errorText}`);
+          }
         }
         
         const data = await response.json();
@@ -420,42 +486,88 @@ export const Dashboard = () => {
     if (!binId) return;
 
     try {
-      // Try the direct ESP endpoint first
+      // First try the direct ESP endpoint
+      console.log("Trying direct ESP history endpoint");
       try {
-        console.log("Trying direct ESP history endpoint");
-        const response = await fetch(`${ESP_API_URL}/bins/${binId}/history`);
+        const espResponse = await fetch(`${ESP_API_URL}/bins/${binId}/history`);
         
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`ESP history endpoint error: ${response.status} ${response.statusText}`, errorText);
-          throw new Error(`${response.status} ${response.statusText}: ${errorText}`);
+        if (espResponse.ok) {
+          const data = await espResponse.json();
+          console.log("ESP history endpoint data:", data);
+          setBinHistory(data);
+          return;
         }
         
-        const data = await response.json();
-        console.log("ESP history endpoint data:", data);
-        setBinHistory(data);
-        return;
-      } catch (directError) {
-        console.error("Error with direct history endpoint:", directError);
-        
-        // Fall back to API endpoint
-        console.log("Trying API history endpoint");
-        const response = await fetch(`${API_BASE_URL}/bin-data/${binId}/history`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
-          }
-        });
-        
-        if (!response.ok) {
-          const errorText = await response.text();
-          console.error(`API history endpoint error: ${response.status} ${response.statusText}`, errorText);
-          throw new Error(`${response.status} ${response.statusText}: ${errorText}`);
+        const errorText = await espResponse.text();
+        console.error(`ESP history endpoint error: ${espResponse.status}`, errorText);
+        throw new Error(`ESP endpoint failed: ${espResponse.status}`);
+      } catch (espError) {
+        // ESP endpoint failed, try API endpoint
+        console.error("Error with direct history endpoint:", espError);
+      }
+      
+      // Fall back to API endpoint with token refresh logic
+      console.log("Trying API history endpoint");
+      
+      // Get fresh token if the user is logged in
+      let token = localStorage.getItem('authToken');
+      if (currentUser && (!token || token === 'undefined')) {
+        try {
+          token = await currentUser.getIdToken(true);
+          localStorage.setItem('authToken', token);
+          console.log('Refreshed Firebase ID token before history API call');
+        } catch (tokenError) {
+          console.error('Failed to refresh token:', tokenError);
         }
-        
-        const data = await response.json();
+      }
+      
+      // Make API request with token
+      const apiResponse = await fetch(`${API_BASE_URL}/bin-data/${binId}/history`, {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        }
+      });
+      
+      if (apiResponse.ok) {
+        const data = await apiResponse.json();
         console.log("API history endpoint data:", data);
         setBinHistory(data);
+        return;
       }
+      
+      const errorText = await apiResponse.text();
+      console.error(`API history endpoint error: ${apiResponse.status}`, errorText);
+      
+      // If unauthorized, try to refresh token and retry
+      if (apiResponse.status === 401 && currentUser) {
+        try {
+          console.log('Unauthorized, trying to refresh token and retry history fetch');
+          const newToken = await currentUser.getIdToken(true);
+          localStorage.setItem('authToken', newToken);
+          
+          // Retry with new token
+          const retryResponse = await fetch(`${API_BASE_URL}/bin-data/${binId}/history`, {
+            headers: {
+              'Authorization': `Bearer ${newToken}`,
+            }
+          });
+          
+          if (retryResponse.ok) {
+            const retryData = await retryResponse.json();
+            console.log("API history endpoint data (after token refresh):", retryData);
+            setBinHistory(retryData);
+            return;
+          }
+          
+          console.error(`Retry failed: ${retryResponse.status}`);
+          throw new Error(`Retry failed: ${retryResponse.status}`);
+        } catch (refreshError) {
+          console.error('Token refresh failed for history:', refreshError);
+          throw new Error(`Token refresh failed: ${refreshError.message}`);
+        }
+      }
+      
+      throw new Error(`API history endpoint failed: ${apiResponse.status}`);
     } catch (error) {
       console.error('Error fetching history data:', error);
       // Don't show history errors to user, just set empty array
@@ -610,9 +722,22 @@ export const Dashboard = () => {
         // Fall back to API endpoint
         try {
           console.log(`Trying API endpoint for bin ${binIdToConnect}`);
+          
+          // Get fresh token if the user is logged in
+          let token = localStorage.getItem('authToken');
+          if (currentUser && (!token || token === 'undefined')) {
+            try {
+              token = await currentUser.getIdToken(true);
+              localStorage.setItem('authToken', token);
+              console.log('Refreshed Firebase ID token before connect API call');
+            } catch (tokenError) {
+              console.error('Failed to refresh token:', tokenError);
+            }
+          }
+          
           const response = await fetch(`${API_BASE_URL}/bin-data/${binIdToConnect}`, {
             headers: {
-              'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+              'Authorization': `Bearer ${token}`,
             }
           });
           
@@ -620,11 +745,38 @@ export const Dashboard = () => {
             const errorText = await response.text();
             console.error(`API endpoint error: ${response.status} ${response.statusText}`, errorText);
             errorMessages.push(`API endpoint: ${response.status} ${response.statusText}`);
-            throw new Error(`API endpoint failed: ${response.status}`);
+            
+            // If unauthorized, try to refresh token and retry
+            if (response.status === 401 && currentUser) {
+              try {
+                console.log('Unauthorized, trying to refresh token and retry');
+                const newToken = await currentUser.getIdToken(true);
+                localStorage.setItem('authToken', newToken);
+                
+                // Retry with new token
+                const retryResponse = await fetch(`${API_BASE_URL}/bin-data/${binIdToConnect}`, {
+                  headers: {
+                    'Authorization': `Bearer ${newToken}`,
+                  }
+                });
+                
+                if (!retryResponse.ok) {
+                  throw new Error(`Retry failed: ${retryResponse.status}`);
+                }
+                
+                data = await retryResponse.json();
+                console.log("Successfully connected via API endpoint (after token refresh):", data);
+              } catch (refreshError) {
+                console.error('Token refresh failed:', refreshError);
+                throw new Error(`API endpoint failed: ${response.status}`);
+              }
+            } else {
+              throw new Error(`API endpoint failed: ${response.status}`);
+            }
+          } else {
+            data = await response.json();
+            console.log("Successfully connected via API endpoint:", data);
           }
-          
-          data = await response.json();
-          console.log("Successfully connected via API endpoint:", data);
         } catch (apiError) {
           console.error("API endpoint connection failed:", apiError);
           errorMessages.push(`API attempt: ${apiError.message}`);
@@ -658,61 +810,105 @@ export const Dashboard = () => {
             
             // Try API endpoint
             console.log(`Fetching history for bin ${binIdToConnect} from API endpoint`);
+            
+            // Get fresh token if the user is logged in
+            let token = localStorage.getItem('authToken');
+            if (currentUser && (!token || token === 'undefined')) {
+              try {
+                token = await currentUser.getIdToken(true);
+                localStorage.setItem('authToken', token);
+                console.log('Refreshed Firebase ID token before history API call');
+              } catch (tokenError) {
+                console.error('Failed to refresh token:', tokenError);
+              }
+            }
+            
             const historyResponse = await fetch(`${API_BASE_URL}/bin-data/${binIdToConnect}/history`, {
               headers: {
-                'Authorization': `Bearer ${localStorage.getItem('authToken')}`,
+                'Authorization': `Bearer ${token}`,
               }
             });
             
             if (!historyResponse.ok) {
               const errorText = await historyResponse.text();
               console.error(`API history endpoint error: ${historyResponse.status}`, errorText);
-              throw new Error(`API history endpoint failed: ${historyResponse.status}`);
+              
+              // If unauthorized, try to refresh token and retry
+              if (historyResponse.status === 401 && currentUser) {
+                try {
+                  console.log('Unauthorized, trying to refresh token and retry history fetch');
+                  const newToken = await currentUser.getIdToken(true);
+                  localStorage.setItem('authToken', newToken);
+                  
+                  // Retry with new token
+                  const retryResponse = await fetch(`${API_BASE_URL}/bin-data/${binIdToConnect}/history`, {
+                    headers: {
+                      'Authorization': `Bearer ${newToken}`,
+                    }
+                  });
+                  
+                  if (!retryResponse.ok) {
+                    throw new Error(`Retry failed: ${retryResponse.status}`);
+                  }
+                  
+                  historyData = await retryResponse.json();
+                  console.log("Successfully fetched history via API endpoint (after token refresh):", historyData);
+                } catch (refreshError) {
+                  console.error('Token refresh failed for history:', refreshError);
+                  throw new Error(`API history endpoint failed: ${historyResponse.status}`);
+                }
+              } else {
+                throw new Error(`API history endpoint failed: ${historyResponse.status}`);
+              }
+            } else {
+              historyData = await historyResponse.json();
+              console.log("Successfully fetched history via API endpoint:", historyData);
             }
-            
-            historyData = await historyResponse.json();
-            console.log("Successfully fetched history via API endpoint:", historyData);
           }
-          setBinHistory(historyData || []);
+          
+          // Set history data if we have it
+          if (historyData) {
+            setBinHistory(historyData);
+          }
+          
+          // If no location was provided, use the one from the bin data
+          if (!locationToConnect && data.location) {
+            setBinLocation(data.location);
+            locationToConnect = data.location;
+          }
+          
+          // Update location in bin if provided
+          if (locationToConnect && locationToConnect !== data.location) {
+            try {
+              // Try to update the bin location
+              console.log(`Updating bin location to: ${locationToConnect}`);
+              await api.bins.updateBin(binIdToConnect, { location: locationToConnect });
+            } catch (updateErr) {
+              console.error("Error updating bin location:", updateErr);
+              // Non-critical error, don't show to user
+            }
+          }
+          
+          // Save the bin ID and location to local storage for this user
+          if (userId) {
+            try {
+              localStorage.setItem(`smartbin_${userId}_binId`, binIdToConnect);
+              localStorage.setItem(`smartbin_${userId}_location`, locationToConnect || "");
+            } catch (err) {
+              console.error("Error saving to localStorage:", err);
+            }
+          }
+          
+          // Set previous fill level for overflow detection
+          setPreviousFillLevel(data.fillPercentage || 0);
+          
+          // Clear any previous error
+          setError(null);
         } catch (historyErr) {
           console.error("All history fetch attempts failed:", historyErr);
           setBinHistory([]);
           // Non-critical error, don't prevent dashboard from showing
         }
-        
-        // If no location was provided, use the one from the bin data
-        if (!locationToConnect && data.location) {
-          setBinLocation(data.location);
-          locationToConnect = data.location;
-        }
-        
-        // Update location in bin if provided
-        if (locationToConnect && locationToConnect !== data.location) {
-          try {
-            // Try to update the bin location
-            console.log(`Updating bin location to: ${locationToConnect}`);
-            await api.bins.updateBin(binIdToConnect, { location: locationToConnect });
-          } catch (updateErr) {
-            console.error("Error updating bin location:", updateErr);
-            // Non-critical error, don't show to user
-          }
-        }
-        
-        // Save the bin ID and location to local storage for this user
-        if (userId) {
-          try {
-            localStorage.setItem(`smartbin_${userId}_binId`, binIdToConnect);
-            localStorage.setItem(`smartbin_${userId}_location`, locationToConnect || "");
-          } catch (err) {
-            console.error("Error saving to localStorage:", err);
-          }
-        }
-        
-        // Set previous fill level for overflow detection
-        setPreviousFillLevel(data.fillPercentage || 0);
-        
-        // Clear any previous error
-        setError(null);
       }
     } catch (err) {
       console.error("Error connecting to bin:", err);
